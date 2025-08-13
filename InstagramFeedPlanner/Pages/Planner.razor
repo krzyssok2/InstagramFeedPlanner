@@ -1,41 +1,35 @@
 ﻿@page "/planner"
 
+@inject IJSRuntime JS
+
 <div class="planner-page">
     <div class="feed-grid">
-
         @foreach (var element in Images)
         {
             <div class="feed-item"
                  ondragover="event.preventDefault();"
-                 style="background: @element.Color;"
+                 style="background: #4d4d4d;"
                  draggable="true"
                  @ondragstart="(e) => OnDragStart(element, e)"
                  @ondrop="(e) => OnDrop(element, e)">
+                 @if (!string.IsNullOrEmpty(element.Url))
+                 {
+                     <img draggable="false" src="@element.Url" style="width:100%;height:100%;object-fit:cover;" />
+                 }
             </div>
         }
     </div>
 </div>
 
-
 @code {
     private class InstagramElement
     {
         public string Url { get; set; }
-        public string Color { get; set; }
     }
 
     private List<InstagramElement> Images = new()
     {
-        new InstagramElement { Color = "Red" },
-        new InstagramElement { Color = "Red" },
-        new InstagramElement { Color = "Orange" },
-        new InstagramElement { Color = "Yellow" },
-        new InstagramElement { Color = "Green" },
-        new InstagramElement { Color = "Blue" },
-        new InstagramElement { Color = "Indigo" },
-        new InstagramElement { Color = "Violet" },
-        new InstagramElement { Color = "Pink" },
-        new InstagramElement { Color = "Cyan" }
+
     };
 
     InstagramElement? draggedItem;
@@ -45,25 +39,62 @@
         draggedItem = element;
     }
 
-    void OnDrop(InstagramElement element, DragEventArgs e)
+    async Task OnDrop(InstagramElement element, DragEventArgs e)
     {
-        if (draggedItem == null) return;
+        if (draggedItem != null)
+        {
 
-        // Example: swap items
-        var draggedIndex = Images.IndexOf(draggedItem);
-        var dropIndex = Images.IndexOf(element);
-        (Images[draggedIndex], Images[dropIndex]) = (Images[dropIndex], Images[draggedIndex]);
+            if(e.ShiftKey)
+            {
+                HandleSwap(Images, draggedItem, element, e);
+            }
+            else
+            {
+                HandleInsert(Images, draggedItem, element, e);
+            }     
 
-        draggedItem = null;
+            draggedItem = null;
+            StateHasChanged();
+            return;
+        }
+
+        // Image drop logic
+        var imageUrl = await JS.InvokeAsync<string>("dragDropHelper.getImageFromDropEvent");
+        if (!string.IsNullOrEmpty(imageUrl))
+        {
+            element.Url = imageUrl;
+            StateHasChanged();
+        }
+    }
+
+    private void HandleInsert(List<InstagramElement> currentFeed, InstagramElement draggedItem, InstagramElement element, DragEventArgs e)
+    {
+        var draggedIndex = currentFeed.IndexOf(draggedItem);
+        var dropIndex = currentFeed.IndexOf(element);
+
+        if (draggedIndex != dropIndex)
+        {
+            // Remove dragged item
+            currentFeed.RemoveAt(draggedIndex);
+
+            currentFeed.Insert(dropIndex, draggedItem);
+        }
+    }
+
+    private void HandleSwap(List<InstagramElement> currentFeed, InstagramElement draggedItem, InstagramElement element, DragEventArgs e)
+    {
+        var draggedIndex = currentFeed.IndexOf(draggedItem);
+        var dropIndex = currentFeed.IndexOf(element);
+        (currentFeed[draggedIndex], currentFeed[dropIndex]) = (currentFeed[dropIndex], currentFeed[draggedIndex]);
     }
 }
 
 <style>
     .planner-page {
-        border: 1px solid;
-        overflow: hidden;
+        border: 1px solid;        
         height: var(--full-page-height);
-        overflow:scroll;
+        overflow-x: hidden;
+        overflow-y:scroll;
         max-height: var(--full-page-height);
     }
 
@@ -79,5 +110,50 @@
         aspect-ratio: 4 / 5; /* keep shape */
         width: 100%; /* fill grid cell */
         height: auto; /* allow height to be automatic */
+        position: relative;
+        overflow: hidden;
     }
 </style>
+
+<script>
+    (function () {
+        let lastDropEvent = null;
+
+        document.addEventListener('drop', function (ev) {
+            ev.preventDefault();
+            lastDropEvent = ev;
+        }, true);
+
+        document.addEventListener('dragover', function (ev) {
+            ev.preventDefault();
+        }, true);
+
+        window.dragDropHelper = {
+            getImageFromDropEvent: function () {
+                return new Promise((resolve) => {
+                    let e = lastDropEvent;
+                    lastDropEvent = null;
+
+                    if (!e || !e.dataTransfer || !e.dataTransfer.files || e.dataTransfer.files.length === 0) {
+                        resolve("");
+                        return;
+                    }
+
+                    var file = e.dataTransfer.files[0];
+                    var isImage = file.type.startsWith('image/') || ['jpg','jpeg','png','gif','bmp','webp']
+                            .includes(file.name.split('.').pop().toLowerCase());
+
+                    if (isImage) {
+                        var reader = new FileReader();
+                        reader.onload = function (evt) {
+                            resolve(evt.target.result);
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        resolve("");
+                    }
+                });
+            },
+        };
+    })();
+</script>
