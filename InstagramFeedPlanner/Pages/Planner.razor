@@ -1,0 +1,83 @@
+﻿@page "/planner"
+
+<div class="planner-page">
+    <div class="feed-grid">
+
+        @foreach (var element in Images)
+        {
+            <div class="feed-item"
+                 ondragover="event.preventDefault();"
+                 style="background: @element.Color;"
+                 draggable="true"
+                 @ondragstart="(e) => OnDragStart(element, e)"
+                 @ondrop="(e) => OnDrop(element, e)">
+            </div>
+        }
+    </div>
+</div>
+
+
+@code {
+    private class InstagramElement
+    {
+        public string Url { get; set; }
+        public string Color { get; set; }
+    }
+
+    private List<InstagramElement> Images = new()
+    {
+        new InstagramElement { Color = "Red" },
+        new InstagramElement { Color = "Red" },
+        new InstagramElement { Color = "Orange" },
+        new InstagramElement { Color = "Yellow" },
+        new InstagramElement { Color = "Green" },
+        new InstagramElement { Color = "Blue" },
+        new InstagramElement { Color = "Indigo" },
+        new InstagramElement { Color = "Violet" },
+        new InstagramElement { Color = "Pink" },
+        new InstagramElement { Color = "Cyan" }
+    };
+
+    InstagramElement? draggedItem;
+
+    void OnDragStart(InstagramElement element, DragEventArgs e)
+    {
+        draggedItem = element;
+    }
+
+    void OnDrop(InstagramElement element, DragEventArgs e)
+    {
+        if (draggedItem == null) return;
+
+        // Example: swap items
+        var draggedIndex = Images.IndexOf(draggedItem);
+        var dropIndex = Images.IndexOf(element);
+        (Images[draggedIndex], Images[dropIndex]) = (Images[dropIndex], Images[draggedIndex]);
+
+        draggedItem = null;
+    }
+}
+
+<style>
+    .planner-page {
+        border: 1px solid;
+        overflow: hidden;
+        height: var(--full-page-height);
+        overflow:scroll;
+        max-height: var(--full-page-height);
+    }
+
+    .feed-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .feed-item {
+        aspect-ratio: 4 / 5; /* keep shape */
+        width: 100%; /* fill grid cell */
+        height: auto; /* allow height to be automatic */
+    }
+</style>
