@@ -1,0 +1,196 @@
+﻿@page "/planner"
+
+<PageTitle>Planner</PageTitle>
+
+@inject IJSRuntime JS
+
+<button @onclick="() => AddElement()">Add</button>
+
+<div class="planner-page">
+    <div class="feed-grid">
+        @foreach (var element in Images)
+        {
+            <div class="feed-item"
+                 ondragover="event.preventDefault();"
+                 style="background: #4d4d4d;"
+                 draggable="true"
+                 @ondragstart="(e) => OnDragStart(element, e)"
+                 @ondrop="(e) => OnDrop(element, e)">
+                <button class="delete-button" @onclick="() => OnDelete(element)" @onclick:stopPropagation>
+                    @* <XIcon StrokeThickness="4" /> *@
+                </button>
+                 @if (!string.IsNullOrEmpty(element.Url))
+                 {
+                     <img draggable="false" src="@element.Url" style="width:100%;height:100%;object-fit:cover;" />
+                 }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private class InstagramElement
+    {
+        public string Url { get; set; }
+    }
+
+    private void AddElement()
+    {
+        Images.Add(new InstagramElement());            
+    }
+
+    private List<InstagramElement> Images = new()
+    {
+
+    };
+
+    InstagramElement? draggedItem;
+
+    void OnDelete(InstagramElement element)
+    {
+        var index = Images.IndexOf(element);
+
+        Images.RemoveAt(index);
+    }
+
+    void OnDragStart(InstagramElement element, DragEventArgs e)
+    {
+        draggedItem = element;
+    }
+
+    async Task OnDrop(InstagramElement element, DragEventArgs e)
+    {
+        if (draggedItem != null)
+        {
+
+            if(e.ShiftKey)
+            {
+                HandleSwap(Images, draggedItem, element, e);
+            }
+            else
+            {
+                HandleInsert(Images, draggedItem, element, e);
+            }     
+
+            draggedItem = null;
+            StateHasChanged();
+            return;
+        }
+
+        // Image drop logic
+        var imageUrl = await JS.InvokeAsync<string>("dragDropHelper.getImageFromDropEvent");
+        if (!string.IsNullOrEmpty(imageUrl))
+        {
+            element.Url = imageUrl;
+            StateHasChanged();
+        }
+    }
+
+    private void HandleInsert(List<InstagramElement> currentFeed, InstagramElement draggedItem, InstagramElement element, DragEventArgs e)
+    {
+        var draggedIndex = currentFeed.IndexOf(draggedItem);
+        var dropIndex = currentFeed.IndexOf(element);
+
+        if (draggedIndex != dropIndex)
+        {
+            // Remove dragged item
+            currentFeed.RemoveAt(draggedIndex);
+
+            currentFeed.Insert(dropIndex, draggedItem);
+        }
+    }
+
+    private void HandleSwap(List<InstagramElement> currentFeed, InstagramElement draggedItem, InstagramElement element, DragEventArgs e)
+    {
+        var draggedIndex = currentFeed.IndexOf(draggedItem);
+        var dropIndex = currentFeed.IndexOf(element);
+        (currentFeed[draggedIndex], currentFeed[dropIndex]) = (currentFeed[dropIndex], currentFeed[draggedIndex]);
+    }
+}
+
+<style>
+    .delete-button {
+        position: absolute;
+        top: 1px; /* adjust as needed */
+        right: 1px; /* adjust as needed */
+        background: transparent !important;
+        margin-left: auto;
+        border: none;
+        color: red !important;
+        cursor: pointer;
+        transition: 0.2s ease-in-out;
+    }
+
+        .delete-button:hover {
+            background-color: transparent;
+            transform: scale(1.3);
+            opacity: 0.8;
+        }
+
+    .planner-page {
+        border: 1px solid;        
+        height: var(--full-page-height);
+        overflow-x: hidden;
+        overflow-y:scroll;
+        max-height: var(--full-page-height);
+    }
+
+    .feed-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .feed-item {
+        aspect-ratio: 4 / 5; /* keep shape */
+        width: 100%; /* fill grid cell */
+        height: auto; /* allow height to be automatic */
+        position: relative;
+        overflow: hidden;
+    }
+</style>
+
+<script>
+    (function () {
+        let lastDropEvent = null;
+
+        document.addEventListener('drop', function (ev) {
+            ev.preventDefault();
+            lastDropEvent = ev;
+        }, true);
+
+        document.addEventListener('dragover', function (ev) {
+            ev.preventDefault();
+        }, true);
+
+        window.dragDropHelper = {
+            getImageFromDropEvent: function () {
+                return new Promise((resolve) => {
+                    let e = lastDropEvent;
+                    lastDropEvent = null;
+
+                    if (!e || !e.dataTransfer || !e.dataTransfer.files || e.dataTransfer.files.length === 0) {
+                        resolve("");
+                        return;
+                    }
+
+                    var file = e.dataTransfer.files[0];
+                    var isImage = file.type.startsWith('image/') || ['jpg','jpeg','png','gif','bmp','webp']
+                            .includes(file.name.split('.').pop().toLowerCase());
+
+                    if (isImage) {
+                        var reader = new FileReader();
+                        reader.onload = function (evt) {
+                            resolve(evt.target.result);
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        resolve("");
+                    }
+                });
+            },
+        };
+    })();
+</script>
