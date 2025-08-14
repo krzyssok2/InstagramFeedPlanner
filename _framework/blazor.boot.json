@@ -1,0 +1,110 @@
+{
+  "mainAssemblyName": "InstagramFeedPlanner",
+  "resources": {
+    "hash": "sha256-z3lDM6+ETbX4WuMTnNF7Vn2ZgccZ3hqFXxjiOjW8DZ4=",
+    "fingerprinting": {
+      "Microsoft.AspNetCore.Components.zwv122wsor.wasm": "Microsoft.AspNetCore.Components.wasm",
+      "Microsoft.AspNetCore.Components.Web.3rlih5bqop.wasm": "Microsoft.AspNetCore.Components.Web.wasm",
+      "Microsoft.AspNetCore.Components.WebAssembly.6q1jpjgfcs.wasm": "Microsoft.AspNetCore.Components.WebAssembly.wasm",
+      "Microsoft.Extensions.Configuration.zr9y6n6fms.wasm": "Microsoft.Extensions.Configuration.wasm",
+      "Microsoft.Extensions.Configuration.Abstractions.e7obn5k3m8.wasm": "Microsoft.Extensions.Configuration.Abstractions.wasm",
+      "Microsoft.Extensions.Configuration.Json.this79iyc7.wasm": "Microsoft.Extensions.Configuration.Json.wasm",
+      "Microsoft.Extensions.DependencyInjection.t4styidezf.wasm": "Microsoft.Extensions.DependencyInjection.wasm",
+      "Microsoft.Extensions.DependencyInjection.Abstractions.8f1q12knux.wasm": "Microsoft.Extensions.DependencyInjection.Abstractions.wasm",
+      "Microsoft.Extensions.Logging.6vimitskgi.wasm": "Microsoft.Extensions.Logging.wasm",
+      "Microsoft.Extensions.Logging.Abstractions.elmhutega7.wasm": "Microsoft.Extensions.Logging.Abstractions.wasm",
+      "Microsoft.Extensions.Options.gengnogwit.wasm": "Microsoft.Extensions.Options.wasm",
+      "Microsoft.Extensions.Primitives.v7gb9xjdhy.wasm": "Microsoft.Extensions.Primitives.wasm",
+      "Microsoft.JSInterop.thjhyg5vln.wasm": "Microsoft.JSInterop.wasm",
+      "Microsoft.JSInterop.WebAssembly.pxf5p9f275.wasm": "Microsoft.JSInterop.WebAssembly.wasm",
+      "System.Collections.Concurrent.o2hwqeerud.wasm": "System.Collections.Concurrent.wasm",
+      "System.Collections.Immutable.dnvv9nnjpb.wasm": "System.Collections.Immutable.wasm",
+      "System.Collections.8xuna1ribt.wasm": "System.Collections.wasm",
+      "System.ComponentModel.e3q0ysgg90.wasm": "System.ComponentModel.wasm",
+      "System.Console.4iiang2bzq.wasm": "System.Console.wasm",
+      "System.IO.Pipelines.j7hw5n5kz8.wasm": "System.IO.Pipelines.wasm",
+      "System.Linq.3uqm1dbv1e.wasm": "System.Linq.wasm",
+      "System.Memory.ingd06mohz.wasm": "System.Memory.wasm",
+      "System.Net.Http.qdes2txg95.wasm": "System.Net.Http.wasm",
+      "System.Net.Primitives.xpspmtm8v8.wasm": "System.Net.Primitives.wasm",
+      "System.Private.Uri.kjyi95avv6.wasm": "System.Private.Uri.wasm",
+      "System.Runtime.InteropServices.JavaScript.q2qvulo9k9.wasm": "System.Runtime.InteropServices.JavaScript.wasm",
+      "System.Runtime.ejnkveq6qw.wasm": "System.Runtime.wasm",
+      "System.Text.Encodings.Web.yosxql6jn5.wasm": "System.Text.Encodings.Web.wasm",
+      "System.Text.Json.h6jruwiato.wasm": "System.Text.Json.wasm",
+      "System.Text.RegularExpressions.qhcsf9u1lx.wasm": "System.Text.RegularExpressions.wasm",
+      "System.Private.CoreLib.lrjpag45lw.wasm": "System.Private.CoreLib.wasm",
+      "InstagramFeedPlanner.8xrovdwwho.wasm": "InstagramFeedPlanner.wasm",
+      "dotnet.native.fjwdof7fuz.js": "dotnet.native.js",
+      "dotnet.native.jq58xcgtpr.wasm": "dotnet.native.wasm",
+      "dotnet.js": "dotnet.js",
+      "dotnet.runtime.ew19f13umk.js": "dotnet.runtime.js",
+      "icudt_CJK.tjcz0u77k5.dat": "icudt_CJK.dat",
+      "icudt_EFIGS.tptq2av103.dat": "icudt_EFIGS.dat",
+      "icudt_no_CJK.lfu7j35m59.dat": "icudt_no_CJK.dat"
+    },
+    "jsModuleNative": {
+      "dotnet.native.fjwdof7fuz.js": "sha256-BTZWVYmjU3il0nhi+FV9dvzO3XWNw9R+7u8lgvJ8AL8="
+    },
+    "jsModuleRuntime": {
+      "dotnet.runtime.ew19f13umk.js": "sha256-Isv/63htfX73xgn3/2cZMtk4S8xBcbmlXRgJMDv4mhI="
+    },
+    "wasmNative": {
+      "dotnet.native.jq58xcgtpr.wasm": "sha256-9X85Ligq7rfDHT6P7f2t+6FmII0N+yCAnM/sTzgH2Ho="
+    },
+    "icu": {
+      "icudt_CJK.tjcz0u77k5.dat": "sha256-SZLtQnRc0JkwqHab0VUVP7T3uBPSeYzxzDnpxPpUnHk=",
+      "icudt_EFIGS.tptq2av103.dat": "sha256-8fItetYY8kQ0ww6oxwTLiT3oXlBwHKumbeP2pRF4yTc=",
+      "icudt_no_CJK.lfu7j35m59.dat": "sha256-L7sV7NEYP37/Qr2FPCePo5cJqRgTXRwGHuwF5Q+0Nfs="
+    },
+    "coreAssembly": {
+      "System.Runtime.InteropServices.JavaScript.q2qvulo9k9.wasm": "sha256-wqfILadLLKdooVusvPcbEZBkeJ+9Yu23S7S8YQQEyLY=",
+      "System.Private.CoreLib.lrjpag45lw.wasm": "sha256-UTqVPjVMu8plxGa2cF22jGk0rqAod+VifD4oWl4Zw84="
+    },
+    "assembly": {
+      "Microsoft.AspNetCore.Components.zwv122wsor.wasm": "sha256-0+GuYLWllfhoZYSUH16l1SuFHQcR9mIHWKgAWSWFKwo=",
+      "Microsoft.AspNetCore.Components.Web.3rlih5bqop.wasm": "sha256-Yaw1Z00ZlpDjZE2hRZUjxz6Qsi7OGGL7zt6IYUKl+0E=",
+      "Microsoft.AspNetCore.Components.WebAssembly.6q1jpjgfcs.wasm": "sha256-fjQLv7QBHIpcSwll79hiQkBjYbjlubHRq6aKLOvoAVQ=",
+      "Microsoft.Extensions.Configuration.zr9y6n6fms.wasm": "sha256-AfgiKXj2TZbhvV4OmBVd8zf36SdWtLxp9dIGGJ3QRbY=",
+      "Microsoft.Extensions.Configuration.Abstractions.e7obn5k3m8.wasm": "sha256-SvqIqLTJFeFnn2GyYARDkqvF//mAgsCnCMAO0bMqo60=",
+      "Microsoft.Extensions.Configuration.Json.this79iyc7.wasm": "sha256-X+g8Y9v8Xs3DURC3DvFf0BXk5Ll4hWN5k4Oc+3lBALE=",
+      "Microsoft.Extensions.DependencyInjection.t4styidezf.wasm": "sha256-rW0muBNtI+FY/WA4kKZ6KaamvExUL3czb1N7sbPc6K4=",
+      "Microsoft.Extensions.DependencyInjection.Abstractions.8f1q12knux.wasm": "sha256-TI0n48GlUGLYGPH7ns4ftHjMAJRLWZ26PxPg3SU725I=",
+      "Microsoft.Extensions.Logging.6vimitskgi.wasm": "sha256-/lATVMaxjrO/7QTYnmE50qdHvr8l76pNE9v29HGzLeA=",
+      "Microsoft.Extensions.Logging.Abstractions.elmhutega7.wasm": "sha256-XiEBsiupeY7rUwrYpzwAGSRPqty1E7ePNDa47wHp318=",
+      "Microsoft.Extensions.Options.gengnogwit.wasm": "sha256-iE5IdsswZs+bzrBrYg+UZn83ARwJL0gCmIz92diTNH8=",
+      "Microsoft.Extensions.Primitives.v7gb9xjdhy.wasm": "sha256-JZwhFEQoWOuRn2U0Qji1wcp9EpYv3Dxvujsu4PzdEDs=",
+      "Microsoft.JSInterop.thjhyg5vln.wasm": "sha256-D9Er45Fjw626NSAqOOhYj/pBZWGKHTe5EtJh5N1zO4E=",
+      "Microsoft.JSInterop.WebAssembly.pxf5p9f275.wasm": "sha256-EzPimVxYUyvc5hlmFOvopAur+oDc/0DNCvYv9ReoU70=",
+      "System.Collections.Concurrent.o2hwqeerud.wasm": "sha256-kO9jz+6Y4VzATlYicC+eMYK6d2g40JgiJqq22TUDKGk=",
+      "System.Collections.Immutable.dnvv9nnjpb.wasm": "sha256-+UagFQVAJSIqCz5n6wk9M3fxVjeV99qDLNfM6RveMBM=",
+      "System.Collections.8xuna1ribt.wasm": "sha256-tOUNViGxaDS+QCc90uOiS2nSPJa8HRrJ4Z1g8EQJU0E=",
+      "System.ComponentModel.e3q0ysgg90.wasm": "sha256-5inQh8bubMrlto3Kwxx9iM27KpcXN8152RWX745jLso=",
+      "System.Console.4iiang2bzq.wasm": "sha256-LBN1ueL+49wvAiTKGxvxFkSRY/jj78tStK8INqqkLsE=",
+      "System.IO.Pipelines.j7hw5n5kz8.wasm": "sha256-H1CHBmaAMS4PKAPtP+BRNwndUH6Sgof2IjdMGHxUFvI=",
+      "System.Linq.3uqm1dbv1e.wasm": "sha256-pWmjoIrDTlb/bNlOBhQFNnIGC3I0VjPU+ISADlDqiLA=",
+      "System.Memory.ingd06mohz.wasm": "sha256-cjIYuHtH0I+txGp3MEja4jfEGxvdiaPO2b6R/fM95U8=",
+      "System.Net.Http.qdes2txg95.wasm": "sha256-MuIBShdkd3uBiCmENmDEXcV3gM9ETKBrgfOBbG7pucw=",
+      "System.Net.Primitives.xpspmtm8v8.wasm": "sha256-pSdnjYgJc+hNq1q/ZNeofRaYvOCBNL1mHFHoF/j+a8Y=",
+      "System.Private.Uri.kjyi95avv6.wasm": "sha256-YLwA1i2e8qU6Ngq4nnMHLyoNS9UGNo4aVScf1bKXVGY=",
+      "System.Runtime.ejnkveq6qw.wasm": "sha256-KktVrlAOascZ70mhcO0BIQUU/10mz7sWbf5QUsBqhwE=",
+      "System.Text.Encodings.Web.yosxql6jn5.wasm": "sha256-fgKqJw0Vkd2XqqB/Aj8WLXZK9/DPfEX9FcsrTzQTRFU=",
+      "System.Text.Json.h6jruwiato.wasm": "sha256-J2h8It3KEE7eVU+nR3IyBWHVxVMv0KvA7MTuDKKmYtc=",
+      "System.Text.RegularExpressions.qhcsf9u1lx.wasm": "sha256-wn7A6lyHyUX6ncCXE68PB0fgNpaI8xcNLGHt7qHCuQo=",
+      "InstagramFeedPlanner.8xrovdwwho.wasm": "sha256-XHZBtOcEHkY9hRxrvR8qVOS/Vv0dokNXvRyRx6j2NLM="
+    },
+    "libraryInitializers": {
+      "_content/BlazorWasmPreRendering.Build/BlazorWasmPreRendering.Build.lfyg69o9wu.lib.module.js": "sha256-UVy3L6kXaa89JN6tg+EbiLCuVLpkmxOoG6sAi7Bb9uc="
+    },
+    "modulesAfterConfigLoaded": {
+      "../_content/BlazorWasmPreRendering.Build/BlazorWasmPreRendering.Build.lfyg69o9wu.lib.module.js": "sha256-UVy3L6kXaa89JN6tg+EbiLCuVLpkmxOoG6sAi7Bb9uc="
+    }
+  },
+  "cacheBootResources": true,
+  "debugLevel": 0,
+  "linkerEnabled": true,
+  "globalizationMode": "sharded",
+  "extensions": {
+    "blazor": {}
+  }
+}
