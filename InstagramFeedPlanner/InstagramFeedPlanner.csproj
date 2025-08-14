@@ -6,8 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
 	  
 	<BlazorWasmPrerenderingUrlPathToExplicitFetch>
-		/
-		/help
+		/;
+		/help;
 	 </BlazorWasmPrerenderingUrlPathToExplicitFetch>
 	 <BlazorWasmPrerenderingDeleteLoadingContents>true</BlazorWasmPrerenderingDeleteLoadingContents>
   </PropertyGroup>
