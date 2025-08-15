@@ -1,0 +1,252 @@
+﻿<div class="cropper-wrapper" @ref="Wrapper"
+     @onpointerdown="OnPointerDown"
+     @onpointermove="OnPointerMove"
+     @onpointerup="OnPointerUp"
+     @onpointerleave="OnPointerUp">
+    <div class="crop-box"></div>
+    <img @ref="ImageRef" src="@Src" class="crop-image" />
+</div>
+
+<div class="zoom-slider-wrapper">
+    <input type="range" min="0" max="100" value="@ZoomValue" @oninput="OnSliderChanged" />
+</div>
+
+<div style="text-align:center;margin-top:10px;">
+    <button @onclick="GetCroppedImageAsync">Preview Crop</button>
+    <button @onclick="ConfirmCrop" style="margin-left:10px;">Confirm</button>
+</div>
+@if (CroppedImageDataUrl != null)
+{
+    <img src="@CroppedImageDataUrl" style="max-width:200px;max-height:200px;" />
+}
+
+@using InstagramFeedPlanner.Components
+
+@code {
+    [Parameter] public string Src { get; set; } = "";
+    [Parameter] public EventCallback<(string croppedUrl, CropData cropData)> OnConfirm { get; set; }
+    [Parameter] public CropData CropData { get; set; } = new CropData();
+
+    private ElementReference ImageRef;
+    private ElementReference Wrapper;
+
+    private double ZoomValue { get; set; } = 0;
+    private double Scale { get; set; } = 1;
+    private double MinScale { get; set; } = 1;
+    private double PosX { get; set; } = 0;
+    private double PosY { get; set; } = 0;
+    private bool IsDragging { get; set; } = false;
+    private double StartX { get; set; }
+    private double StartY { get; set; } = 0;
+    private double ImgWidth { get; set; }
+    private double ImgHeight { get; set; }
+    private double CropWidth { get; set; }
+    private double CropHeight { get; set; }
+
+    private string? CroppedImageDataUrl;
+
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+
+    private async Task OnSliderChanged(ChangeEventArgs e)
+    {
+        var oldScale = Scale;
+        ZoomValue = Convert.ToDouble(e.Value);
+        var maxScale = MinScale * 3;
+        var newScale = MinScale + ((maxScale - MinScale) * (ZoomValue / 100));
+
+        // Center of crop box
+        var centerX = CropWidth / 2.0;
+        var centerY = CropHeight / 2.0;
+
+        // Image point under center before zoom
+        var imgCenterX = (centerX - PosX) / oldScale;
+        var imgCenterY = (centerY - PosY) / oldScale;
+
+        // New position so same image point stays under center
+        PosX = centerX - imgCenterX * newScale;
+        PosY = centerY - imgCenterY * newScale;
+        Scale = newScale;
+        ClampPosition();
+        await SetTransformAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var cropperInfo = await JS.InvokeAsync<CropperInitInfo>("initInstagramStyleCropperInfo", ImageRef, Wrapper);
+            MinScale = cropperInfo.MinScale;
+            Scale = CropData.Scale > 0 ? CropData.Scale : MinScale;
+            ZoomValue = CropData.ZoomValue;
+            PosX = CropData.PosX != 0 ? CropData.PosX : cropperInfo.PosX;
+            PosY = CropData.PosY != 0 ? CropData.PosY : cropperInfo.PosY;
+            ImgWidth = cropperInfo.ImgWidth;
+            ImgHeight = cropperInfo.ImgHeight;
+            CropWidth = cropperInfo.CropWidth;
+            CropHeight = cropperInfo.CropHeight;
+            ClampPosition();
+            await SetTransformAsync();
+        }
+    }
+
+    private async Task SetTransformAsync()
+    {
+        await JS.InvokeVoidAsync("setCropperTransform", ImageRef, PosX, PosY, Scale);
+    }
+
+    private void OnPointerDown(PointerEventArgs e)
+    {
+        IsDragging = true;
+        StartX = e.ClientX - PosX;
+        StartY = e.ClientY - PosY;
+    }
+
+    private async void OnPointerMove(PointerEventArgs e)
+    {
+        if (!IsDragging) return;
+        PosX = e.ClientX - StartX;
+        PosY = e.ClientY - StartY;
+        ClampPosition();
+        await SetTransformAsync();
+    }
+
+    private async void OnPointerUp(PointerEventArgs e)
+    {
+        IsDragging = false;
+        await SetTransformAsync();
+    }
+
+    private void ClampPosition()
+    {
+        var minX = CropWidth - ImgWidth * Scale;
+        var minY = CropHeight - ImgHeight * Scale;
+        PosX = Math.Min(0, Math.Max(minX, PosX));
+        PosY = Math.Min(0, Math.Max(minY, PosY));
+    }
+
+    private async Task GetCroppedImageAsync()
+    {
+        CroppedImageDataUrl = await JS.InvokeAsync<string>("getCroppedImageDataUrl", ImageRef, Wrapper, PosX, PosY, Scale);
+        StateHasChanged();
+    }
+
+    private async Task ConfirmCrop()
+    {
+        if (CroppedImageDataUrl == null)
+        {
+            await GetCroppedImageAsync();
+        }
+        if (CroppedImageDataUrl != null)
+        {
+            var cropData = new CropData
+            {
+                PosX = PosX,
+                PosY = PosY,
+                Scale = Scale,
+                ZoomValue = ZoomValue,
+                ImgWidth = ImgWidth,
+                ImgHeight = ImgHeight
+            };
+            await OnConfirm.InvokeAsync((CroppedImageDataUrl, cropData));
+        }
+    }
+
+    private class CropperInitInfo
+    {
+        public double MinScale { get; set; }
+        public double PosX { get; set; }
+        public double PosY { get; set; }
+        public double ImgWidth { get; set; }
+        public double ImgHeight { get; set; }
+        public double CropWidth { get; set; }
+        public double CropHeight { get; set; }
+    }
+
+}
+
+<style>
+    .cropper-wrapper {
+        position: relative;
+        width: 400px;
+        height: 500px; /* 4:5 ratio */
+        overflow: hidden;
+        margin: 50px auto;
+        border: 2px solid white;
+        box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+        touch-action: none; /* Prevent touch scroll during drag */
+        user-select: none; /* Prevent text selection while dragging */
+    }
+
+    .crop-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        cursor: grab;
+        transform-origin: top left;
+        -webkit-user-drag: none; /* Prevent image drag ghost */
+        user-drag: none;
+    }
+
+    .crop-box {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+
+    .zoom-slider-wrapper {
+        width: 400px;
+        margin: 10px auto;
+    }
+
+</style>
+
+<script>
+window.initInstagramStyleCropperInfo = (img, wrapper) => {
+    return new Promise(resolve => {
+        function getInfo() {
+            const cropWidth = wrapper.clientWidth || 1;
+            const cropHeight = wrapper.clientHeight || 1;
+            const imgWidth = img.naturalWidth || 1;
+            const imgHeight = img.naturalHeight || 1;
+            const minScale = Number(Math.max(cropWidth / imgWidth, cropHeight / imgHeight)) || 1;
+            const scale = Number(minScale);
+            const posX = Number((cropWidth - imgWidth * scale) / 2) || 0;
+            const posY = Number((cropHeight - imgHeight * scale) / 2) || 0;
+            resolve({
+                minScale: minScale,
+                posX: posX,
+                posY: posY,
+                imgWidth: imgWidth,
+                imgHeight: imgHeight,
+                cropWidth: cropWidth,
+                cropHeight: cropHeight
+            });
+        }
+        if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+            getInfo();
+        } else {
+            img.onload = getInfo;
+        }
+    });
+};
+window.setCropperTransform = (img, posX, posY, scale) => {
+    img.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+};
+window.getCroppedImageDataUrl = (img, wrapper, posX, posY, scale) => {
+    const cropWidth = wrapper.clientWidth;
+    const cropHeight = wrapper.clientHeight;
+    const canvas = document.createElement('canvas');
+    canvas.width = cropWidth;
+    canvas.height = cropHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, cropWidth, cropHeight);
+    ctx.save();
+    ctx.translate(posX, posY);
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0);
+    ctx.restore();
+    return canvas.toDataURL('image/jpeg', 0.95);
+};
+</script>

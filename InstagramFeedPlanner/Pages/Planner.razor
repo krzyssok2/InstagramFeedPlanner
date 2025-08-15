@@ -1,4 +1,6 @@
-﻿@page "/planner"
+﻿@using InstagramFeedPlanner.Components
+
+@page "/planner"
 
 <PageTitle>Planner</PageTitle>
 
@@ -12,26 +14,43 @@
         {
             <div class="feed-item"
                  ondragover="event.preventDefault();"
-                 style="background: #4d4d4d;"
+                 style="background: #4d4d4d; aspect-ratio:4/5; width:100%; height:auto; overflow:hidden; position:relative;"
                  draggable="true"
                  @ondragstart="(e) => OnDragStart(element, e)"
                  @ondrop="(e) => OnDrop(element, e)">
-                <button class="delete-button" @onclick="() => OnDelete(element)" @onclick:stopPropagation>
-                    @* <XIcon StrokeThickness="4" /> *@
-                </button>
+                 <div>
+                    <button class="delete-button" @onclick="() => OnDelete(element)" @onclick:stopPropagation>
+                        Delete
+                    </button>
+                    <button class="delete-button" style="color:blue;right:30px;" @onclick="() => OnAdjust(element)" @onclick:stopPropagation>
+                        Adjust
+                    </button>
+                 </div>
+                
                  @if (!string.IsNullOrEmpty(element.Url))
                  {
-                     <img draggable="false" src="@element.Url" style="width:100%;height:100%;object-fit:cover;" />
+                     <img src="@element.Url" style="@GetCropStyle(element.CropData)" />
                  }
             </div>
         }
     </div>
 </div>
 
+@if (adjustingElement != null)
+{
+    <div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:1000;">
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:10px; aspect-ratio:4/5; width:90vw; max-width:500px; height:auto;">
+            <InstagramFeedPlanner.Components.AspectCropper2 Src="@adjustingElement.Url" OnConfirm="@(result => OnCropConfirmed(result))" CropData="@adjustingElement.CropData" />
+            <button @onclick="CancelAdjust" style="margin-top:10px;">Cancel</button>
+        </div>
+    </div>
+}
+
 @code {
     private class InstagramElement
     {
-        public string Url { get; set; }
+        public string Url { get; set; } // Only original image
+        public CropData CropData { get; set; } = new CropData();
     }
 
     private void AddElement()
@@ -41,16 +60,35 @@
 
     private List<InstagramElement> Images = new()
     {
-
     };
 
     InstagramElement? draggedItem;
+    InstagramElement? adjustingElement;
 
     void OnDelete(InstagramElement element)
     {
         var index = Images.IndexOf(element);
-
         Images.RemoveAt(index);
+    }
+
+    void OnAdjust(InstagramElement element)
+    {
+        adjustingElement = element;
+    }
+
+    void CancelAdjust()
+    {
+        adjustingElement = null;
+    }
+
+    async Task OnCropConfirmed((string _, CropData cropData) result)
+    {
+        if (adjustingElement != null)
+        {
+            adjustingElement.CropData = result.cropData;
+            adjustingElement = null;
+            StateHasChanged();
+        }
     }
 
     void OnDragStart(InstagramElement element, DragEventArgs e)
@@ -62,7 +100,6 @@
     {
         if (draggedItem != null)
         {
-
             if(e.ShiftKey)
             {
                 HandleSwap(Images, draggedItem, element, e);
@@ -71,17 +108,16 @@
             {
                 HandleInsert(Images, draggedItem, element, e);
             }     
-
             draggedItem = null;
             StateHasChanged();
             return;
         }
-
         // Image drop logic
         var imageUrl = await JS.InvokeAsync<string>("dragDropHelper.getImageFromDropEvent");
         if (!string.IsNullOrEmpty(imageUrl))
         {
             element.Url = imageUrl;
+            element.CropData = new CropData();
             StateHasChanged();
         }
     }
@@ -90,12 +126,10 @@
     {
         var draggedIndex = currentFeed.IndexOf(draggedItem);
         var dropIndex = currentFeed.IndexOf(element);
-
         if (draggedIndex != dropIndex)
         {
             // Remove dragged item
             currentFeed.RemoveAt(draggedIndex);
-
             currentFeed.Insert(dropIndex, draggedItem);
         }
     }
@@ -105,6 +139,17 @@
         var draggedIndex = currentFeed.IndexOf(draggedItem);
         var dropIndex = currentFeed.IndexOf(element);
         (currentFeed[draggedIndex], currentFeed[dropIndex]) = (currentFeed[dropIndex], currentFeed[draggedIndex]);
+    }
+
+    private string GetCropStyle(CropData crop)
+    {
+        if (crop == null || crop.Scale == 0 || crop.ImgWidth == 0 || crop.ImgHeight == 0)
+            return "width:100%;height:100%;left:0;top:0;position:absolute;";
+        var scaledWidth = crop.ImgWidth * crop.Scale;
+        var scaledHeight = crop.ImgHeight * crop.Scale;
+        var left = crop.PosX;
+        var top = crop.PosY;
+        return $"width:{scaledWidth}px;height:{scaledHeight}px;left:{left}px;top:{top}px;position:absolute;";
     }
 }
 
@@ -119,6 +164,7 @@
         color: red !important;
         cursor: pointer;
         transition: 0.2s ease-in-out;
+        z-index:1000;
     }
 
         .delete-button:hover {
@@ -139,14 +185,14 @@
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 1px;
-        max-width: 900px;
+        max-width: 1200px;
         margin: 0 auto;
     }
 
     .feed-item {
         aspect-ratio: 4 / 5; /* keep shape */
-        width: 100%; /* fill grid cell */
-        height: auto; /* allow height to be automatic */
+        width: 400px; /* fill grid cell */
+        height: 500px; /* allow height to be automatic */
         position: relative;
         overflow: hidden;
     }
