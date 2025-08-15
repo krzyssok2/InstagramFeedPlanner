@@ -12,7 +12,6 @@
 </div>
 
 <div style="text-align:center;margin-top:10px;">
-    <button @onclick="GetCroppedImageAsync">Preview Crop</button>
     <button @onclick="ConfirmCrop" style="margin-left:10px;">Confirm</button>
 </div>
 @if (CroppedImageDataUrl != null)
@@ -170,9 +169,7 @@
         width: 400px;
         height: 500px; /* 4:5 ratio */
         overflow: hidden;
-        margin: 50px auto;
         border: 2px solid white;
-        box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
         touch-action: none; /* Prevent touch scroll during drag */
         user-select: none; /* Prevent text selection while dragging */
     }
