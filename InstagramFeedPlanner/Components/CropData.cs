@@ -6,7 +6,5 @@ namespace InstagramFeedPlanner.Components
         public double PosY { get; set; }
         public double Scale { get; set; }
         public double ZoomValue { get; set; }
-        public double ImgWidth { get; set; }
-        public double ImgHeight { get; set; }
     }
 }

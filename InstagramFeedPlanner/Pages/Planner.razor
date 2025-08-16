@@ -28,7 +28,6 @@
                             Adjust
                         </button>
                     }
-
                 </div>
 
                 @if (!string.IsNullOrEmpty(element.Url))
@@ -43,12 +42,11 @@
 
 
 
-
 @if (adjustingElement != null)
 {
     <div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:1000;">
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:10px; aspect-ratio:4/5; width:90vw; max-width:500px; height:auto;">
-            <InstagramFeedPlanner.Components.AspectCropper2 Src="@adjustingElement.Url" OnConfirm="@(result => OnCropConfirmed(result))" CropData="@adjustingElement.CropData" />
+            <AspectCropper2 Src="@adjustingElement.Url" OnConfirm="@(result => OnCropConfirmed(result))" CropData="@adjustingElement.CropData" />
             <button @onclick="CancelAdjust">Cancel</button>
         </div>
     </div>
@@ -151,13 +149,16 @@
 
     private string GetCropStyle(CropData crop)
     {
-        if (crop == null || crop.Scale == 0 || crop.ImgWidth == 0 || crop.ImgHeight == 0)
-            return "width:100%;height:100%;left:0;top:0;position:absolute;";
-        var scaledWidth = crop.ImgWidth * crop.Scale + 4;
-        var scaledHeight = crop.ImgHeight * crop.Scale + 4;
-        var left = crop.PosX;
-        var top = crop.PosY;
-        return $"width:{scaledWidth}px;height:{scaledHeight}px;left:{left}px;top:{top}px;position:absolute;";
+        if (crop == null || crop.Scale == 0)
+            return "position:absolute;";
+
+        Console.WriteLine(crop.Scale);
+
+
+        // 0.81 - Current container size / preview size TODO: potentially provide cropper container size
+        return $"position:absolute;" +
+               $"transform:translate({crop.PosX * 0.81}px, {crop.PosY * 0.81}px) scale({crop.Scale * 0.81});" +
+               $"transform-origin:top left;";
     }
 }
 
@@ -193,16 +194,16 @@
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 1px;
-        max-width: 1200px;;
+        max-width: 972px;
         margin: 0 auto;
     }
 
     .feed-item {
         aspect-ratio : 4 / 5;
-        width: 400px; /* fill grid cell */
-        height: 500px; /* allow height to be automatic */
-        max-height:500px;
-        max-width:400px;
+        width: 324px; /* fill grid cell */
+        height: 405px; /* allow height to be automatic */
+        max-width: 324px;
+        max-height:405px;
         position: relative;
         overflow: hidden;
     }
