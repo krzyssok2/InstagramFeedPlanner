@@ -1,4 +1,5 @@
 ﻿@using InstagramFeedPlanner.Components
+@using InstagramFeedPlanner.Models
 
 @page "/planner"
 
@@ -10,29 +11,33 @@
 
 <div class="planner-page">
     <div class="feed-grid">
-        @foreach (var element in Images)
+        @foreach (var post in Feed.Posts.OrderByDescending(e => e.Position))
         {
             <div class="feed-item"
                  ondragover="event.preventDefault();"
-                 style="background: red;"
+                 style="background: gray;"
                  draggable="true"
-                 @ondragstart="(e) => OnDragStart(element, e)"
-                 @ondrop="(e) => OnDrop(element, e)">
+                 @ondragstart="() => OnDragStart(post.Id)"
+                 @ondrop="(e) => OnDrop(post.Id, e)">
                 <div>
-                    @* <button class="delete-button" @onclick="() => OnDelete(element)" @onclick:stopPropagation>
+                    <button class="delete-button" @onclick="() => OnPostDelete(post.Id)" @onclick:stopPropagation>
                         Delete
-                    </button> *@
-                    @if (!string.IsNullOrEmpty(element.Url))
+                    </button>
+                    @if (!string.IsNullOrEmpty(post.Url))
                     {
-                        <button class="delete-button" @onclick="() => OnAdjust(element)" @onclick:stopPropagation>
+                        <button class="delete-button" style="margin-top: 25px;" @onclick="() => OnAdjust(post)" @onclick:stopPropagation>
                             Adjust
                         </button>
                     }
+
+                    <button class="delete-button" style="margin-top: 50px;" @onclick="() => OnAdjust(post)" @onclick:stopPropagation>
+                        @post.Position
+                    </button>
                 </div>
 
-                @if (!string.IsNullOrEmpty(element.Url))
+                @if (!string.IsNullOrEmpty(post.Url))
                 {
-                    <img src="@element.Url" style="@GetCropStyle(element.CropData)" />
+                    <img src="@post.Url" style="@GetCropStyle(post.CropData)" draggable="false" />
                 }
             </div>
         }
@@ -53,104 +58,60 @@
 }
 
 @code {
-    private class InstagramElement
-    {
-        public string Url { get; set; } // Only original image
-        public CropData CropData { get; set; } = new CropData();
-    }
-
-    private void AddElement()
-    {
-        Images.Add(new InstagramElement());            
-    }
-
-    private List<InstagramElement> Images = new()
-    {
-    };
-
-    InstagramElement? draggedItem;
+    Guid? draggedItemId;
     InstagramElement? adjustingElement;
 
-    void OnDelete(InstagramElement element)
-    {
-        var index = Images.IndexOf(element);
-        Images.RemoveAt(index);
-    }
+    private UserFeed Feed = new([]);
 
-    void OnAdjust(InstagramElement element)
-    {
-        adjustingElement = element;
-    }
+    void AddElement() => Feed.AddEmptyPost();
 
-    void CancelAdjust()
-    {
-        adjustingElement = null;
-    }
+    void OnPostDelete(Guid id) => Feed.DeletePost(id);
 
-    async Task OnCropConfirmed((string _, CropData cropData) result)
+    void OnAdjust(InstagramElement element) => adjustingElement = element;
+
+    void CancelAdjust() => adjustingElement = null;
+
+    void OnDragStart(Guid id) => draggedItemId = id;
+
+    async Task OnDrop(Guid id, DragEventArgs e)
     {
-        if (adjustingElement != null)
+        if (draggedItemId != null)
         {
-            adjustingElement.CropData = result.cropData;
-            adjustingElement = null;
-            StateHasChanged();
-        }
-    }
+            HandlePostDrop(draggedItemId.Value, id, e);
 
-    void OnDragStart(InstagramElement element, DragEventArgs e)
-    {
-        draggedItem = element;
-    }
-
-    async Task OnDrop(InstagramElement element, DragEventArgs e)
-    {
-        if (draggedItem != null)
-        {
-            if(e.ShiftKey)
-            {
-                HandleSwap(Images, draggedItem, element, e);
-            }
-            else
-            {
-                HandleInsert(Images, draggedItem, element, e);
-            }     
-            draggedItem = null;
+            draggedItemId = null;
             StateHasChanged();
             return;
         }
+
         // Image drop logic
         var imageUrl = await JS.InvokeAsync<string>("dragDropHelper.getImageFromDropEvent");
         if (!string.IsNullOrEmpty(imageUrl))
         {
-            element.Url = imageUrl;
-            element.CropData = new CropData();
+            Feed.InitializeImage(id, imageUrl);
             StateHasChanged();
         }
     }
 
-    private void HandleInsert(List<InstagramElement> currentFeed, InstagramElement draggedItem, InstagramElement element, DragEventArgs e)
+    private void HandlePostDrop(Guid draggedPost, Guid targetPost, DragEventArgs e)
     {
-        var draggedIndex = currentFeed.IndexOf(draggedItem);
-        var dropIndex = currentFeed.IndexOf(element);
-        if (draggedIndex != dropIndex)
+        if (e.ShiftKey)
         {
-            // Remove dragged item
-            currentFeed.RemoveAt(draggedIndex);
-            currentFeed.Insert(dropIndex, draggedItem);
+            Feed.SwapPosts(draggedPost, targetPost);
         }
-    }
-
-    private void HandleSwap(List<InstagramElement> currentFeed, InstagramElement draggedItem, InstagramElement element, DragEventArgs e)
-    {
-        var draggedIndex = currentFeed.IndexOf(draggedItem);
-        var dropIndex = currentFeed.IndexOf(element);
-        (currentFeed[draggedIndex], currentFeed[dropIndex]) = (currentFeed[dropIndex], currentFeed[draggedIndex]);
+        else
+        {
+            Feed.InsertPostIntoPosition(draggedPost, targetPost);
+        }
     }
 
     private string GetCropStyle(CropData crop)
     {
         if (crop == null || crop.Scale == 0)
-            return "position:absolute;";
+        {
+            return "object-fit:contain";
+        }
+       
 
         Console.WriteLine(crop.Scale);
 
@@ -159,6 +120,16 @@
         return $"position:absolute;" +
                $"transform:translate({crop.PosX * 0.81}px, {crop.PosY * 0.81}px) scale({crop.Scale * 0.81});" +
                $"transform-origin:top left;";
+    }
+
+    async Task OnCropConfirmed((string _, CropData cropData) result)
+    {
+        if (adjustingElement != null)
+        {
+            adjustingElement.UpdateCropData(result.cropData);
+            adjustingElement = null;
+            StateHasChanged();
+        }
     }
 }
 

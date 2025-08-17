@@ -1,4 +1,4 @@
-namespace InstagramFeedPlanner.Components
+namespace InstagramFeedPlanner.Models
 {
     public class CropData
     {
