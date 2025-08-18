@@ -24,8 +24,8 @@
 
 @code {
     [Parameter] public string Src { get; set; } = "";
-    [Parameter] public EventCallback<(string croppedUrl, CropData cropData)> OnConfirm { get; set; }
-    [Parameter] public CropData CropData { get; set; } = new CropData();
+    [Parameter] public EventCallback<(string croppedUrl, CropDataModel cropData)> OnConfirm { get; set; }
+    [Parameter] public CropDataModel CropData { get; set; } = new CropDataModel();
 
     private ElementReference ImageRef;
     private ElementReference Wrapper;
@@ -138,7 +138,7 @@
         }
         if (CroppedImageDataUrl != null)
         {
-            var cropData = new CropData
+            var cropData = new CropDataModel
             {
                 PosX = PosX,
                 PosY = PosY,

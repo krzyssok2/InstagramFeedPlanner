@@ -1,136 +1,66 @@
 ﻿@using InstagramFeedPlanner.Components
+@using InstagramFeedPlanner.Extensions
+@using InstagramFeedPlanner.IndexedDB.Models
 @using InstagramFeedPlanner.Models
+@using Magic.IndexedDb
 
 @page "/planner"
 
 <PageTitle>Planner</PageTitle>
 
-@inject IJSRuntime JS
+@if (Feed?.Posts != null)
+{
+    <button @onclick="() => AddElement()">Add</button>
 
-<button @onclick="() => AddElement()">Add</button>
+    <div class="planner-page">
+        <div class="feed-grid">
+            @foreach (var post in Feed.Posts.OrderByDescending(e => e.Position))
+            {
+                <div class="feed-item"
+                     ondragover="event.preventDefault();"
+                     style="background: gray;"
+                     draggable="true"
+                     @ondragstart="() => OnDragStart(post.Id)"
+                     @ondrop="(e) => OnDrop(post.Id, e)">
+                    <div>
+                        <button class="delete-button" @onclick="() => OnPostDelete(post.Id)" @onclick:stopPropagation>
+                            Delete
+                        </button>
+                        @if (!string.IsNullOrEmpty(post.Url))
+                        {
+                            <button class="delete-button" style="margin-top: 25px;" @onclick="() => OnAdjust(post)" @onclick:stopPropagation>
+                                Adjust
+                            </button>
+                        }
 
-<div class="planner-page">
-    <div class="feed-grid">
-        @foreach (var post in Feed.Posts.OrderByDescending(e => e.Position))
-        {
-            <div class="feed-item"
-                 ondragover="event.preventDefault();"
-                 style="background: gray;"
-                 draggable="true"
-                 @ondragstart="() => OnDragStart(post.Id)"
-                 @ondrop="(e) => OnDrop(post.Id, e)">
-                <div>
-                    <button class="delete-button" @onclick="() => OnPostDelete(post.Id)" @onclick:stopPropagation>
-                        Delete
-                    </button>
+                        <button class="delete-button" style="margin-top: 50px;" @onclick="() => OnAdjust(post)" @onclick:stopPropagation>
+                            @post.Position
+                        </button>
+                    </div>
+
                     @if (!string.IsNullOrEmpty(post.Url))
                     {
-                        <button class="delete-button" style="margin-top: 25px;" @onclick="() => OnAdjust(post)" @onclick:stopPropagation>
-                            Adjust
-                        </button>
+                        <img loading="lazy" src="@post.Url" style="@GetCropStyle(post.CropData)" draggable="false" />
                     }
-
-                    <button class="delete-button" style="margin-top: 50px;" @onclick="() => OnAdjust(post)" @onclick:stopPropagation>
-                        @post.Position
-                    </button>
                 </div>
-
-                @if (!string.IsNullOrEmpty(post.Url))
-                {
-                    <img src="@post.Url" style="@GetCropStyle(post.CropData)" draggable="false" />
-                }
-            </div>
-        }
+            }
+        </div>
     </div>
-</div>
-
-
+}
+else
+{
+    <h1>Loading</h1>
+}
 
 
 @if (adjustingElement != null)
 {
     <div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:1000;">
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:10px; aspect-ratio:4/5; width:90vw; max-width:500px; height:auto;">
-            <AspectCropper2 Src="@adjustingElement.Url" OnConfirm="@(result => OnCropConfirmed(result))" CropData="@adjustingElement.CropData" />
+            <AspectCropper2 Src="@adjustingElement.Url" OnConfirm="@(result => OnCropConfirmed(result))" CropData="@adjustingElement.CropData.ToCropDataModel()" />
             <button @onclick="CancelAdjust">Cancel</button>
         </div>
     </div>
-}
-
-@code {
-    Guid? draggedItemId;
-    InstagramElement? adjustingElement;
-
-    private UserFeed Feed = new([]);
-
-    void AddElement() => Feed.AddEmptyPost();
-
-    void OnPostDelete(Guid id) => Feed.DeletePost(id);
-
-    void OnAdjust(InstagramElement element) => adjustingElement = element;
-
-    void CancelAdjust() => adjustingElement = null;
-
-    void OnDragStart(Guid id) => draggedItemId = id;
-
-    async Task OnDrop(Guid id, DragEventArgs e)
-    {
-        if (draggedItemId != null)
-        {
-            HandlePostDrop(draggedItemId.Value, id, e);
-
-            draggedItemId = null;
-            StateHasChanged();
-            return;
-        }
-
-        // Image drop logic
-        var imageUrl = await JS.InvokeAsync<string>("dragDropHelper.getImageFromDropEvent");
-        if (!string.IsNullOrEmpty(imageUrl))
-        {
-            Feed.InitializeImage(id, imageUrl);
-            StateHasChanged();
-        }
-    }
-
-    private void HandlePostDrop(Guid draggedPost, Guid targetPost, DragEventArgs e)
-    {
-        if (e.ShiftKey)
-        {
-            Feed.SwapPosts(draggedPost, targetPost);
-        }
-        else
-        {
-            Feed.InsertPostIntoPosition(draggedPost, targetPost);
-        }
-    }
-
-    private string GetCropStyle(CropData crop)
-    {
-        if (crop == null || crop.Scale == 0)
-        {
-            return "object-fit:contain";
-        }
-       
-
-        Console.WriteLine(crop.Scale);
-
-
-        // 0.81 - Current container size / preview size TODO: potentially provide cropper container size
-        return $"position:absolute;" +
-               $"transform:translate({crop.PosX * 0.81}px, {crop.PosY * 0.81}px) scale({crop.Scale * 0.81});" +
-               $"transform-origin:top left;";
-    }
-
-    async Task OnCropConfirmed((string _, CropData cropData) result)
-    {
-        if (adjustingElement != null)
-        {
-            adjustingElement.UpdateCropData(result.cropData);
-            adjustingElement = null;
-            StateHasChanged();
-        }
-    }
 }
 
 <style>
