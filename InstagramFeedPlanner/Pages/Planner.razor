@@ -1,4 +1,5 @@
 ﻿@using InstagramFeedPlanner.Components
+@using InstagramFeedPlanner.Components.Icons
 @using InstagramFeedPlanner.Extensions
 @using InstagramFeedPlanner.Models
 
@@ -20,26 +21,28 @@
                      draggable="true"
                      @ondragstart="() => OnDragStart(post.Id)"
                      @ondrop="(e) => OnDrop(post.Id, e)">
-                    <div>
-                        <button class="delete-button" @onclick="() => OnPostDelete(post.Id)" @onclick:stopPropagation>
-                            Delete
-                        </button>
-                        @if (!string.IsNullOrEmpty(post.Url))
-                        {
-                            <button class="delete-button" style="margin-top: 25px;" @onclick="() => OnAdjust(post)" @onclick:stopPropagation>
-                                Adjust
-                            </button>
-                        }
 
-                        <button class="delete-button" style="margin-top: 50px;" @onclick="() => OnAdjust(post)" @onclick:stopPropagation>
-                            @post.Position
-                        </button>
-                    </div>
+                    <button class="delete-button" @onclick="() => OnPostDelete(post.Id)" @onclick:stopPropagation>
+                        <XIcon StrokeThickness="4" />
+                    </button>
+
+
+                    <button class="icon-button" @onclick="() => OnAdjust(post)" @onclick:stopPropagation>
+                        <PaddleUnlocked StrokeThickness="2" />
+                    </button>
 
                     @if (!string.IsNullOrEmpty(post.Url))
                     {
-                        <img src="@post.Url" style="@GetCropStyle(post.CropData)" draggable="false" />
+                        <button class="icon-button" style="margin-top: 32px;" @onclick="() => OnAdjust(post)" @onclick:stopPropagation>
+                            <Wrench StrokeThickness="2" />
+                        </button>
                     }
+
+                    @if (!string.IsNullOrEmpty(post.Url))
+                    {
+                        <img src="@post.Url" style="@GetCropStyle(post.CropData)"/>
+                    }
+
                 </div>
             }
         </div>
@@ -72,7 +75,7 @@ else
         color: red !important;
         cursor: pointer;
         transition: 0.2s ease-in-out;
-        z-index:1000;
+        z-index:1;
     }
 
         .delete-button:hover {
@@ -80,6 +83,20 @@ else
             transform: scale(1.3);
             opacity: 0.8;
         }
+
+    .icon-button {
+        position: absolute;
+        top: 0px; /* adjust as needed */
+        left: 0px; /* adjust as needed */
+        margin-left: auto;
+        border-width:2px;
+        height:32px;
+        width:32px;
+        padding:0px;
+        cursor: pointer;
+        transition: 0.2s ease-in-out;
+        z-index: 1;
+    }
 
     .planner-page {
         border: 1px solid;        
@@ -104,7 +121,7 @@ else
         max-width: 324px;
         max-height:405px;
         position: relative;
-        overflow: hidden;
+        overflow: clip;
     }
 </style>
 

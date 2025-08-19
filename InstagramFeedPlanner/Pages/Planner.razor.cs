@@ -75,7 +75,7 @@ public partial class Planner(IJSRuntime js, UserFeedService Feed, IndexedDbImage
     {
         if (crop == null || crop.Scale == 0)
         {
-            return "object-fit:contain";
+            return "width:324px; height:405px; position:absolute; object-fit: scale-down";
         }
 
         Console.WriteLine(crop.Scale);

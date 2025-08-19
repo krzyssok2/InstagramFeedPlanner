@@ -32,31 +32,70 @@ async function hashImage(url) {
     return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
+async function downscaleImage(url, maxWidth, maxHeight) {
+    const img = await loadImage(url);
+    const { width, height } = getScaledSize(img.width, img.height, maxWidth, maxHeight);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, width, height);
+
+    return new Promise(resolve => {
+        canvas.toBlob(blob => resolve(blob), "image/jpeg", 0.85); // compressed JPEG ~85%
+    });
+}
+
+function loadImage(url) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous"; // important if fetching from another domain
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = url;
+    });
+}
+
+function getScaledSize(origW, origH, maxW, maxH) {
+    let ratio = Math.min(maxW / origW, maxH / origH, 1); // never upscale
+    return {
+        width: Math.round(origW * ratio),
+        height: Math.round(origH * ratio)
+    };
+}
+
 export async function saveImage(url) {
     const hash = await hashImage(url);
     const db = await openDb();
 
-    // Always fetch blob BEFORE transaction
-    const response = await fetch(url);
-    const blob = await response.blob();
+    // Step 1: check if exists
+    const exists = await new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.get(hash);
+        req.onsuccess = () => resolve(!!req.result);
+        req.onerror = () => reject(req.error);
+    });
 
-    return new Promise((resolve, reject) => {
+    if (exists) {
+        return hash;
+    }
+
+    // Step 2: downscale image before storing
+    const blob = await downscaleImage(url, 972, 1215);
+
+    // Step 3: store in IndexedDB
+    await new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, "readwrite");
         const store = tx.objectStore(STORE_NAME);
-
-        const existing = store.get(hash);
-        existing.onsuccess = () => {
-            if (existing.result) {
-                // already exists, no need to write
-                resolve(hash);
-            } else {
-                store.put(blob, hash);
-            }
-        };
-
-        tx.oncomplete = () => resolve(hash);
+        store.put(blob, hash);
+        tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
     });
+
+    return hash;
 }
 
 export async function getBlobUrl(hash) {
