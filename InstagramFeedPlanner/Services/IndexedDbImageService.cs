@@ -31,4 +31,18 @@ public class IndexedDbImageService : IAsyncDisposable
             await module.DisposeAsync();
         }
     }
+
+    public async Task<bool> DeleteImageAsync(string hash)
+    {
+        var module = await moduleTask.Value;
+        return await module.InvokeAsync<bool>("deleteImage", hash);
+    }
+
+    public async Task<List<ImageEntry>> GetAllImagesAsync()
+    {
+        var module = await moduleTask.Value;
+        return await module.InvokeAsync<List<ImageEntry>>("getAllImages");
+    }
+
+    public record ImageEntry(string Key, string Url);
 }

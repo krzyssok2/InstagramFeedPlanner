@@ -79,3 +79,50 @@ export async function getBlobUrl(hash) {
         req.onerror = () => reject(req.error);
     });
 }
+
+export async function deleteImage(hash) {
+    const db = await openDb();
+
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+
+        const req = store.delete(hash);
+
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+export async function getAllImages() {
+    const db = await openDb();
+
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const store = tx.objectStore(STORE_NAME);
+
+        const req = store.getAllKeys();
+        const reqValues = store.getAll();
+
+        let keys, values;
+
+        req.onsuccess = () => {
+            keys = req.result;
+            if (values) finish();
+        };
+        reqValues.onsuccess = () => {
+            values = reqValues.result;
+            if (keys) finish();
+        };
+
+        const finish = () => {
+            const result = keys.map((k, i) => ({
+                key: k,
+                url: URL.createObjectURL(values[i])
+            }));
+            resolve(result);
+        };
+
+        req.onerror = reqValues.onerror = () => reject(req.error ?? reqValues.error);
+    });
+}
