@@ -1,5 +1,5 @@
 using InstagramFeedPlanner;
-using Magic.IndexedDb;
+using InstagramFeedPlanner.Services;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 
@@ -14,5 +14,9 @@ await builder.Build().RunAsync();
 static void ConfigureServices(IServiceCollection services, IWebAssemblyHostEnvironment webHostEnv, string baseAddress)
 {
     services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(baseAddress) });
-    services.AddMagicBlazorDB(BlazorInteropMode.WASM, webHostEnv.IsDevelopment());
+
+    services.AddScoped<PostDbService>();
+    services.AddScoped<IndexedDbImageService>();
+
+    services.AddScoped<UserFeedService>();
 }

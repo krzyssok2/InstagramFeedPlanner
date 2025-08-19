@@ -1,8 +1,6 @@
 ﻿@using InstagramFeedPlanner.Components
 @using InstagramFeedPlanner.Extensions
-@using InstagramFeedPlanner.IndexedDB.Models
 @using InstagramFeedPlanner.Models
-@using Magic.IndexedDb
 
 @page "/planner"
 
@@ -40,7 +38,7 @@
 
                     @if (!string.IsNullOrEmpty(post.Url))
                     {
-                        <img loading="lazy" src="@post.Url" style="@GetCropStyle(post.CropData)" draggable="false" />
+                        <img src="@post.Url" style="@GetCropStyle(post.CropData)" draggable="false" />
                     }
                 </div>
             }

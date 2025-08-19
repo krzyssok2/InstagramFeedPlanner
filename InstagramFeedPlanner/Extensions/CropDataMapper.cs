@@ -1,5 +1,4 @@
-﻿using InstagramFeedPlanner.IndexedDB.Models;
-using InstagramFeedPlanner.Models;
+﻿using InstagramFeedPlanner.Models;
 
 namespace InstagramFeedPlanner.Extensions;
 

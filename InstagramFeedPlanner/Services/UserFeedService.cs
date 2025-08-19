@@ -1,22 +1,44 @@
-﻿using InstagramFeedPlanner.IndexedDB.Models;
-using Magic.IndexedDb;
+﻿using InstagramFeedPlanner.Models;
 
 namespace InstagramFeedPlanner.Services;
 
-public class UserFeedService
+public class UserFeedService(PostDbService dbService, IndexedDbImageService indexedDbImageService)
 {
-    public List<Post> Posts { get; private set; } = [];
+    public List<Post> Posts { get; private set; } = null!;
 
-    private IMagicQuery<Post> PostQuery;
+    private bool IsInitialized;
 
-    public UserFeedService(IMagicQuery<Post> query)
+    public async Task Initialize()
     {
-        PostQuery = query;
+        if (IsInitialized)
+        {
+            return;
+        }
+
+        var posts = await dbService.GetAllPostsAsync();
+
+        foreach (var post in posts)
+        {
+            if (string.IsNullOrEmpty(post.BlobKey))
+            {
+                continue;
+            }
+
+            var blobUrl = await indexedDbImageService.GetBlobUrlAsync(post.BlobKey);
+
+            if (blobUrl == null)
+            {
+                continue;
+            }
+
+            post.UpdateUrl(post.BlobKey, blobUrl);
+        }
+
+        Posts = posts;
+        IsInitialized = true;
     }
 
-    public async Task Initialize() => Posts = await PostQuery.ToListAsync();
-
-    public async Task AddEmptyPost()
+    public void AddEmptyPost()
     {
         var position = Posts.Count == 0 ? 1 : Posts.Max(e => e.Position) + 1;
 
@@ -24,10 +46,10 @@ public class UserFeedService
         newPost.UpdatePosition(position);
 
         Posts.Add(newPost);
-        PostQuery.AddAsync(newPost);
+        _ = dbService.AddPostAsync(newPost);
     }
 
-    public async Task DeletePost(Guid guid)
+    public void DeletePost(Guid guid)
     {
         var requiredPost = Posts.FirstOrDefault(e => e.Id == guid);
 
@@ -43,16 +65,16 @@ public class UserFeedService
             post.UpdatePosition(post.Position - 1);
         }
 
-        await PostQuery.DeleteAsync(requiredPost);
+        _ = dbService.DeletePostAsync(requiredPost.Id);
         Posts.Remove(requiredPost);
 
         if (postsToUpdate.Count != 0)
         {
-            await PostQuery.UpdateRangeAsync(postsToUpdate);
+            _ = dbService.UpdateBatchPostsAsync(postsToUpdate);
         }
     }
 
-    public async Task SwapPosts(Guid postId1, Guid postId2)
+    public void SwapPosts(Guid postId1, Guid postId2)
     {
         var post1 = Posts.FirstOrDefault(e => e.Id == postId1);
         var post2 = Posts.FirstOrDefault(e => e.Id == postId2);
@@ -68,10 +90,10 @@ public class UserFeedService
         post1.UpdatePosition(position2);
         post2.UpdatePosition(position1);
 
-        await PostQuery.UpdateRangeAsync([post1, post2]);
+        _ = dbService.UpdateBatchPostsAsync([post1, post2]);
     }
 
-    public async Task InsertPostIntoPosition(Guid targetPostId, Guid targetPositionId)
+    public void InsertPostIntoPosition(Guid targetPostId, Guid targetPositionId)
     {
         var targetPost = Posts.FirstOrDefault(e => e.Id == targetPostId);
 
@@ -105,24 +127,12 @@ public class UserFeedService
         }
 
         targetPost.UpdatePosition(targetPosition);
-
         postsToUpdate.Add(targetPost);
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Yield(); // let UI thread breathe
-                await PostQuery.UpdateRangeAsync(postsToUpdate);
-            }
-            catch (Exception ex)
-            {
-                // log somewhere, otherwise exception is swallowed
-                Console.Error.WriteLine($"Failed to update posts: {ex}");
-            }
-        });
+
+        _ = dbService.UpdateBatchPostsAsync(postsToUpdate);
     }
 
-    public async Task InitializeImage(Guid id, string url)
+    public void InitializeImage(Guid id, string blobKey, string url)
     {
         var post = Posts.FirstOrDefault(e => e.Id == id);
 
@@ -131,12 +141,12 @@ public class UserFeedService
             return;
         }
 
-        post.UpdateUrl(url);
+        post.UpdateUrl(blobKey, url, true);
 
-        await PostQuery.UpdateAsync(post);
+        _ = dbService.UpdatePostAsync(post);
     }
 
-    public async Task UpdateCropDetails(Guid id, CropData cropData)
+    public void UpdateCropDetails(Guid id, CropData cropData)
     {
         var post = Posts.FirstOrDefault(e => e.Id == id);
 
@@ -146,6 +156,6 @@ public class UserFeedService
         }
 
         post.UpdateCropData(cropData);
-        await PostQuery.UpdateAsync(post);
+        _ = dbService.UpdatePostAsync(post);
     }
 }

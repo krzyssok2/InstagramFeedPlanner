@@ -1,24 +1,17 @@
 using InstagramFeedPlanner.Extensions;
-using InstagramFeedPlanner.IndexedDB.Models;
 using InstagramFeedPlanner.Models;
 using InstagramFeedPlanner.Services;
-using Magic.IndexedDb;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 
 namespace InstagramFeedPlanner.Pages;
 
-public partial class Planner(IMagicIndexedDb magicDb, IJSRuntime js)
+public partial class Planner(IJSRuntime js, UserFeedService Feed, IndexedDbImageService indexedDbImageService)
 {
-    private UserFeedService Feed = null!;
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            var query = await magicDb.Query<Post>();
-
-            Feed = new UserFeedService(query);
             await Feed.Initialize();
 
             StateHasChanged();
@@ -28,9 +21,9 @@ public partial class Planner(IMagicIndexedDb magicDb, IJSRuntime js)
     private Guid? draggedItemId;
     private Post? adjustingElement;
 
-    private async Task AddElement() => await Feed.AddEmptyPost();
+    private void AddElement() => Feed.AddEmptyPost();
 
-    private async Task OnPostDelete(Guid id) => await Feed.DeletePost(id);
+    private void OnPostDelete(Guid id) => Feed.DeletePost(id);
 
     private void OnAdjust(Post element) => adjustingElement = element;
 
@@ -53,20 +46,28 @@ public partial class Planner(IMagicIndexedDb magicDb, IJSRuntime js)
         var imageUrl = await js.InvokeAsync<string>("dragDropHelper.getImageFromDropEvent");
         if (!string.IsNullOrEmpty(imageUrl))
         {
-            Feed.InitializeImage(id, imageUrl);
+            var blobKey = await indexedDbImageService.SaveImageAsync(imageUrl);
+
+            var blobUrl = await indexedDbImageService.GetBlobUrlAsync(blobKey);
+
+            if (blobUrl != null)
+            {
+                Feed.InitializeImage(id, blobKey, blobUrl);
+                return;
+            }
             StateHasChanged();
         }
     }
 
-    private async Task HandlePostDrop(Guid draggedPost, Guid targetPost, DragEventArgs e)
+    private void HandlePostDrop(Guid draggedPost, Guid targetPost, DragEventArgs e)
     {
         if (e.ShiftKey)
         {
-            await Feed.SwapPosts(draggedPost, targetPost);
+            Feed.SwapPosts(draggedPost, targetPost);
         }
         else
         {
-            await Feed.InsertPostIntoPosition(draggedPost, targetPost);
+            Feed.InsertPostIntoPosition(draggedPost, targetPost);
         }
     }
 
