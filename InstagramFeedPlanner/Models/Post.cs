@@ -8,12 +8,14 @@ public class Post
 
     public uint Position { get; set; }
 
+    public bool IsLocked { get; set; } = false;
+
     public string? BlobKey { get; set; }
 
     [JsonIgnore]
     public string? Url { get; set; }
 
-    public CropData CropData { get; set; } = new CropData();
+    public CropData? CropData { get; set; }
 
     public void UpdatePosition(uint position) => Position = position;
 
@@ -30,11 +32,10 @@ public class Post
 
     public void UpdateCropData(CropData cropData)
     {
-        CropData.PosX = cropData.PosX;
-        CropData.PosY = cropData.PosY;
-        CropData.Scale = cropData.Scale;
-        CropData.ZoomValue = cropData.ZoomValue;
+        CropData = cropData;
     }
+
+    public void ToggleLock() => IsLocked = !IsLocked;
 }
 
 public class CropData

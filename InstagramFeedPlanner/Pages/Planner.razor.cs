@@ -8,12 +8,27 @@ namespace InstagramFeedPlanner.Pages;
 
 public partial class Planner(IJSRuntime js, UserFeedService Feed, IndexedDbImageService indexedDbImageService)
 {
+    private DotNetObjectReference<Planner>? objRef;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            objRef = DotNetObjectReference.Create(this);
+            await js.InvokeVoidAsync("visibilityHandler.register", objRef);
+
             await Feed.Initialize();
 
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnVisibilityChanged(bool isVisible)
+    {
+        if (isVisible)
+        {
+            await Feed.Initialize();
             StateHasChanged();
         }
     }
@@ -26,6 +41,8 @@ public partial class Planner(IJSRuntime js, UserFeedService Feed, IndexedDbImage
     private void OnPostDelete(Guid id) => Feed.DeletePost(id);
 
     private void OnAdjust(Post element) => adjustingElement = element;
+
+    private void OnLock(Guid id) => Feed.UpdateLockStatus(id);
 
     private void CancelAdjust() => adjustingElement = null;
 
@@ -71,14 +88,12 @@ public partial class Planner(IJSRuntime js, UserFeedService Feed, IndexedDbImage
         }
     }
 
-    private string GetCropStyle(CropData crop)
+    private static string GetCropStyle(CropData? crop)
     {
         if (crop == null || crop.Scale == 0)
         {
             return "width:324px; height:405px; position:absolute; object-fit: scale-down";
         }
-
-        Console.WriteLine(crop.Scale);
 
         // 0.81 - Current container size / preview size TODO: potentially provide cropper container size
         return $"position:absolute;" +

@@ -6,15 +6,8 @@ public class UserFeedService(PostDbService dbService, IndexedDbImageService inde
 {
     public List<Post> Posts { get; private set; } = null!;
 
-    private bool IsInitialized;
-
     public async Task Initialize()
     {
-        if (IsInitialized)
-        {
-            return;
-        }
-
         var posts = await dbService.GetAllPostsAsync();
 
         foreach (var post in posts)
@@ -35,7 +28,6 @@ public class UserFeedService(PostDbService dbService, IndexedDbImageService inde
         }
 
         Posts = posts;
-        IsInitialized = true;
     }
 
     public void AddEmptyPost()
@@ -84,6 +76,11 @@ public class UserFeedService(PostDbService dbService, IndexedDbImageService inde
             return;
         }
 
+        if (post1.IsLocked || post2.IsLocked)
+        {
+            return;
+        }
+
         var position1 = post1.Position;
         var position2 = post2.Position;
 
@@ -100,6 +97,11 @@ public class UserFeedService(PostDbService dbService, IndexedDbImageService inde
         var targetPositionPost = Posts.FirstOrDefault(e => e.Id == targetPositionId);
 
         if (targetPost == null || targetPositionPost == null)
+        {
+            return;
+        }
+
+        if (targetPost.IsLocked || targetPositionPost.IsLocked)
         {
             return;
         }
@@ -157,5 +159,17 @@ public class UserFeedService(PostDbService dbService, IndexedDbImageService inde
 
         post.UpdateCropData(cropData);
         _ = dbService.UpdatePostAsync(post);
+    }
+
+    public void UpdateLockStatus(Guid id)
+    {
+        var post = Posts.FirstOrDefault(e => e.Id == id);
+
+        if (post == null)
+        {
+            return;
+        }
+
+        post.ToggleLock();
     }
 }
