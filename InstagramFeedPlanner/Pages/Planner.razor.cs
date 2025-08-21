@@ -6,8 +6,10 @@ using Microsoft.JSInterop;
 
 namespace InstagramFeedPlanner.Pages;
 
-public partial class Planner(IJSRuntime js, UserFeedService Feed, IndexedDbImageService indexedDbImageService)
+public partial class Planner(IJSRuntime js, UserFeedService FeedService, IndexedDbImageService indexedDbImageService)
 {
+    private Guid? SelectedFeedId = null;
+
     private DotNetObjectReference<Planner>? objRef;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -17,32 +19,35 @@ public partial class Planner(IJSRuntime js, UserFeedService Feed, IndexedDbImage
             objRef = DotNetObjectReference.Create(this);
             await js.InvokeVoidAsync("visibilityHandler.register", objRef);
 
-            await Feed.Initialize();
+            await FeedService.Initialize();
+
+            SelectedFeedId = FeedService.SelectedFeed.Id;
 
             StateHasChanged();
         }
     }
 
-    [JSInvokable]
-    public async Task OnVisibilityChanged(bool isVisible)
+    private async Task OnFeedChanged()
     {
-        if (isVisible)
-        {
-            await Feed.Initialize();
-            StateHasChanged();
-        }
+        await FeedService.SelectFeed(SelectedFeedId!.Value);
     }
 
     private Guid? draggedItemId;
     private Post? adjustingElement;
 
-    private void AddElement() => Feed.AddEmptyPost();
+    private void AddEmptyPost() => FeedService.AddEmptyPost();
 
-    private void OnPostDelete(Guid id) => Feed.DeletePost(id);
+    private async Task AddNewFeed()
+    {
+        await FeedService.AddNewFeed();
+        SelectedFeedId = FeedService.SelectedFeed.Id;
+    }
+
+    private void OnPostDelete(Guid id) => FeedService.DeletePost(id);
 
     private void OnAdjust(Post element) => adjustingElement = element;
 
-    private void OnLock(Guid id) => Feed.UpdateLockStatus(id);
+    private void OnLock(Guid id) => FeedService.UpdateLockStatus(id);
 
     private void CancelAdjust() => adjustingElement = null;
 
@@ -69,7 +74,7 @@ public partial class Planner(IJSRuntime js, UserFeedService Feed, IndexedDbImage
 
             if (blobUrl != null)
             {
-                Feed.InitializeImage(id, blobKey, blobUrl);
+                FeedService.InitializeImage(id, blobKey, blobUrl);
                 return;
             }
             StateHasChanged();
@@ -80,11 +85,11 @@ public partial class Planner(IJSRuntime js, UserFeedService Feed, IndexedDbImage
     {
         if (e.ShiftKey)
         {
-            Feed.SwapPosts(draggedPost, targetPost);
+            FeedService.SwapPosts(draggedPost, targetPost);
         }
         else
         {
-            Feed.InsertPostIntoPosition(draggedPost, targetPost);
+            FeedService.InsertPostIntoPosition(draggedPost, targetPost);
         }
     }
 
@@ -105,9 +110,20 @@ public partial class Planner(IJSRuntime js, UserFeedService Feed, IndexedDbImage
     {
         if (adjustingElement != null)
         {
-            Feed.UpdateCropDetails(adjustingElement!.Id, result.cropData.ToCropData());
+            FeedService.UpdateCropDetails(adjustingElement!.Id, result.cropData.ToCropData());
 
             adjustingElement = null;
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnVisibilityChanged(bool isVisible)
+    {
+        if (isVisible)
+        {
+            //TO DO:
+            //await FeedService.Initialize();
             StateHasChanged();
         }
     }

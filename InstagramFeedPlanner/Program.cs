@@ -15,7 +15,7 @@ static void ConfigureServices(IServiceCollection services, IWebAssemblyHostEnvir
 {
     services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(baseAddress) });
 
-    services.AddScoped<PostDbService>();
+    services.AddScoped<FeedAndPostDbService>();
     services.AddScoped<IndexedDbImageService>();
 
     services.AddScoped<UserFeedService>();

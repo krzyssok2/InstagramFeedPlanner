@@ -1,13 +1,18 @@
 ﻿let db = null;
 
-export async function initDb(dbName, version, storeName) {
+export async function initDb(dbName, version) {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(dbName, version);
 
         request.onupgradeneeded = (event) => {
             db = event.target.result;
-            if (!db.objectStoreNames.contains(storeName)) {
-                db.createObjectStore(storeName, { keyPath: "id" });
+
+            if (!db.objectStoreNames.contains("feeds")) {
+                db.createObjectStore("feeds", { keyPath: "id" });
+            }
+
+            if (!db.objectStoreNames.contains("posts")) {
+                db.createObjectStore("posts", { keyPath: "id" });
             }
         };
 
@@ -22,21 +27,35 @@ export async function initDb(dbName, version, storeName) {
     });
 }
 
-export async function addPost(storeName, post) {
+/* -------------------
+   FEED FUNCTIONS
+------------------- */
+export async function addFeed(feed) {
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, "readwrite");
-        const store = tx.objectStore(storeName);
-        const request = store.add(post);
+        const tx = db.transaction("feeds", "readwrite");
+        const store = tx.objectStore("feeds");
+        const request = store.add(feed);
 
         request.onsuccess = () => resolve();
         request.onerror = (e) => reject(e.target.error);
     });
 }
 
-export async function deletePost(storeName, id) {
+export async function updateFeed(feed) {
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, "readwrite");
-        const store = tx.objectStore(storeName);
+        const tx = db.transaction("feeds", "readwrite");
+        const store = tx.objectStore("feeds");
+        const request = store.put(feed);
+
+        request.onsuccess = () => resolve();
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+export async function deleteFeed(id) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("feeds", "readwrite");
+        const store = tx.objectStore("feeds");
         const request = store.delete(id);
 
         request.onsuccess = () => resolve();
@@ -44,10 +63,57 @@ export async function deletePost(storeName, id) {
     });
 }
 
-export async function updateBatchPosts(storeName, posts) {
+export async function getFeed(id) {
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, "readwrite");
-        const store = tx.objectStore(storeName);
+        const tx = db.transaction("feeds", "readonly");
+        const store = tx.objectStore("feeds");
+        const request = store.get(id);
+
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+export async function getAllFeeds() {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("feeds", "readonly");
+        const store = tx.objectStore("feeds");
+        const request = store.getAll();
+
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+/* -------------------
+   POST FUNCTIONS
+------------------- */
+export async function addPost(post) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("posts", "readwrite");
+        const store = tx.objectStore("posts");
+        const request = store.add(post);
+
+        request.onsuccess = () => resolve();
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+export async function deletePost(id) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("posts", "readwrite");
+        const store = tx.objectStore("posts");
+        const request = store.delete(id);
+
+        request.onsuccess = () => resolve();
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+export async function updateBatchPosts(posts) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("posts", "readwrite");
+        const store = tx.objectStore("posts");
 
         posts.forEach(post => store.put(post));
 
@@ -56,10 +122,10 @@ export async function updateBatchPosts(storeName, posts) {
     });
 }
 
-export async function getPost(storeName, id) {
+export async function getPost(id) {
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, "readonly");
-        const store = tx.objectStore(storeName);
+        const tx = db.transaction("posts", "readonly");
+        const store = tx.objectStore("posts");
         const request = store.get(id);
 
         request.onsuccess = () => resolve(request.result || null);
@@ -67,13 +133,30 @@ export async function getPost(storeName, id) {
     });
 }
 
-export async function getAllPosts(storeName) {
+export async function getAllPosts() {
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, "readonly");
-        const store = tx.objectStore(storeName);
+        const tx = db.transaction("posts", "readonly");
+        const store = tx.objectStore("posts");
         const request = store.getAll();
 
         request.onsuccess = () => resolve(request.result || []);
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+/* -------------------
+   QUERY POSTS BY FEED
+------------------- */
+export async function getPostsByFeed(feedId) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("posts", "readonly");
+        const store = tx.objectStore("posts");
+        const request = store.getAll();
+
+        request.onsuccess = () => {
+            const results = (request.result || []).filter(p => p.feedId === feedId);
+            resolve(results);
+        };
         request.onerror = (e) => reject(e.target.error);
     });
 }

@@ -7,13 +7,25 @@
 
 <PageTitle>Planner</PageTitle>
 
-@if (Feed?.Posts != null)
+@if (FeedService?.SelectedFeed?.Posts != null)
 {
-    <button @onclick="() => AddElement()">Add</button>
+    <button @onclick="() => AddNewFeed()">Add new Feed</button>
+    <br />
+
+    <select @bind="SelectedFeedId" @bind:after="OnFeedChanged">
+        <option value="0">Select a feed...</option>
+        @foreach (var feed in FeedService.Feeds)
+        {
+            <option value="@feed.Id">@feed.Name</option>
+        }
+    </select>
+    <br />
+
+    <button @onclick="() => AddEmptyPost()">Add</button>
 
     <div class="planner-page">
         <div class="feed-grid">
-            @foreach (var post in Feed.Posts.OrderByDescending(e => e.Position))
+            @foreach (var post in FeedService.SelectedFeed.Posts.OrderByDescending(e => e.Position))
             {
                 <div @key="post.Id"
                      class="feed-item"
@@ -21,7 +33,6 @@
                      draggable="@(post.IsLocked ? "false" : "true")"
                      @ondragstart="() => OnDragStart(post.Id)"
                      @ondrop="(e) => OnDrop(post.Id, e)">
-
 
                     @if(!post.IsLocked)
                     {

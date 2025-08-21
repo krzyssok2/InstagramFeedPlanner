@@ -2,55 +2,90 @@
 
 namespace InstagramFeedPlanner.Services;
 
-public class UserFeedService(PostDbService dbService, IndexedDbImageService indexedDbImageService)
+public class UserFeedService(FeedAndPostDbService dbService, IndexedDbImageService imageService)
 {
-    public List<Post> Posts { get; private set; } = null!;
+    public List<Feed> Feeds { get; private set; } = null!;
+
+    public Feed SelectedFeed { get; private set; } = null!;
+
+    //public List<Post> Posts { get; private set; } = null!;
 
     public async Task Initialize()
     {
-        var posts = await dbService.GetAllPostsAsync();
-
-        foreach (var post in posts)
+        if (Feeds != null)
         {
-            if (string.IsNullOrEmpty(post.BlobKey))
-            {
-                continue;
-            }
-
-            var blobUrl = await indexedDbImageService.GetBlobUrlAsync(post.BlobKey);
-
-            if (blobUrl == null)
-            {
-                continue;
-            }
-
-            post.UpdateUrl(post.BlobKey, blobUrl);
+            return;
         }
 
-        Posts = posts;
+        var feeds = await dbService.GetAllFeedsAsync();
+
+        feeds = feeds.OrderBy(i => i.CreatedDate).ToList();
+
+        if (feeds == null || feeds.Count == 0)
+        {
+            Feeds = [];
+            await AddNewFeed();
+            return;
+        }
+
+        Feeds = feeds;
+
+        var selectedFeed = feeds.First();
+
+        selectedFeed.Posts ??= await GetPostsWithUpdatedBlobs(selectedFeed.Id);
+
+        SelectedFeed = selectedFeed;
+    }
+
+    public async Task AddNewFeed()
+    {
+        var guid = Guid.NewGuid();
+
+        var newFeed = new Feed(guid, $"New Feed - {guid}");
+
+        newFeed.Posts = new List<Post>();
+
+        Feeds.Add(newFeed);
+        _ = dbService.AddFeedAsync(newFeed);
+
+        SelectedFeed = newFeed;
+    }
+
+    public async Task SelectFeed(Guid feedId)
+    {
+        var newSelectedFeed = Feeds?.FirstOrDefault(e => e.Id == feedId);
+
+        if (newSelectedFeed == null)
+        {
+            return;
+        }
+
+        newSelectedFeed.Posts ??= await GetPostsWithUpdatedBlobs(newSelectedFeed.Id);
+
+        SelectedFeed = newSelectedFeed;
     }
 
     public void AddEmptyPost()
     {
-        var position = Posts.Count == 0 ? 1 : Posts.Max(e => e.Position) + 1;
+        var position = SelectedFeed.Posts.Count == 0 ? 1 : SelectedFeed.Posts.Max(e => e.Position) + 1;
 
-        var newPost = new Post() { Id = Guid.NewGuid() };
+        var newPost = new Post(Guid.NewGuid(), SelectedFeed.Id);
         newPost.UpdatePosition(position);
 
-        Posts.Add(newPost);
+        SelectedFeed.Posts.Add(newPost);
         _ = dbService.AddPostAsync(newPost);
     }
 
     public void DeletePost(Guid guid)
     {
-        var requiredPost = Posts.FirstOrDefault(e => e.Id == guid);
+        var requiredPost = SelectedFeed.Posts.FirstOrDefault(e => e.Id == guid);
 
         if (requiredPost == null)
         {
             return;
         }
 
-        var postsToUpdate = Posts.Where(e => e.Position > requiredPost.Position).ToList();
+        var postsToUpdate = SelectedFeed.Posts.Where(e => e.Position > requiredPost.Position).ToList();
 
         foreach (var post in postsToUpdate)
         {
@@ -58,7 +93,7 @@ public class UserFeedService(PostDbService dbService, IndexedDbImageService inde
         }
 
         _ = dbService.DeletePostAsync(requiredPost.Id);
-        Posts.Remove(requiredPost);
+        SelectedFeed.Posts.Remove(requiredPost);
 
         if (postsToUpdate.Count != 0)
         {
@@ -68,8 +103,8 @@ public class UserFeedService(PostDbService dbService, IndexedDbImageService inde
 
     public void SwapPosts(Guid postId1, Guid postId2)
     {
-        var post1 = Posts.FirstOrDefault(e => e.Id == postId1);
-        var post2 = Posts.FirstOrDefault(e => e.Id == postId2);
+        var post1 = SelectedFeed.Posts.FirstOrDefault(e => e.Id == postId1);
+        var post2 = SelectedFeed.Posts.FirstOrDefault(e => e.Id == postId2);
 
         if (post1 == null || post2 == null)
         {
@@ -92,9 +127,9 @@ public class UserFeedService(PostDbService dbService, IndexedDbImageService inde
 
     public void InsertPostIntoPosition(Guid targetPostId, Guid targetPositionId)
     {
-        var targetPost = Posts.FirstOrDefault(e => e.Id == targetPostId);
+        var targetPost = SelectedFeed.Posts.FirstOrDefault(e => e.Id == targetPostId);
 
-        var targetPositionPost = Posts.FirstOrDefault(e => e.Id == targetPositionId);
+        var targetPositionPost = SelectedFeed.Posts.FirstOrDefault(e => e.Id == targetPositionId);
 
         if (targetPost == null || targetPositionPost == null)
         {
@@ -111,7 +146,7 @@ public class UserFeedService(PostDbService dbService, IndexedDbImageService inde
         List<Post> postsToUpdate;
         if (targetPost.Position < targetPosition)
         {
-            postsToUpdate = Posts.Where(i => i.Position > targetPost.Position && i.Position <= targetPosition).ToList();
+            postsToUpdate = SelectedFeed.Posts.Where(i => i.Position > targetPost.Position && i.Position <= targetPosition).ToList();
 
             foreach (var post in postsToUpdate)
             {
@@ -120,7 +155,7 @@ public class UserFeedService(PostDbService dbService, IndexedDbImageService inde
         }
         else
         {
-            postsToUpdate = Posts.Where(i => i.Position < targetPost.Position && i.Position >= targetPosition).ToList();
+            postsToUpdate = SelectedFeed.Posts.Where(i => i.Position < targetPost.Position && i.Position >= targetPosition).ToList();
 
             foreach (var post in postsToUpdate)
             {
@@ -136,7 +171,7 @@ public class UserFeedService(PostDbService dbService, IndexedDbImageService inde
 
     public void InitializeImage(Guid id, string blobKey, string url)
     {
-        var post = Posts.FirstOrDefault(e => e.Id == id);
+        var post = SelectedFeed.Posts.FirstOrDefault(e => e.Id == id);
 
         if (post == null)
         {
@@ -150,7 +185,7 @@ public class UserFeedService(PostDbService dbService, IndexedDbImageService inde
 
     public void UpdateCropDetails(Guid id, CropData cropData)
     {
-        var post = Posts.FirstOrDefault(e => e.Id == id);
+        var post = SelectedFeed.Posts.FirstOrDefault(e => e.Id == id);
 
         if (post == null)
         {
@@ -163,7 +198,7 @@ public class UserFeedService(PostDbService dbService, IndexedDbImageService inde
 
     public void UpdateLockStatus(Guid id)
     {
-        var post = Posts.FirstOrDefault(e => e.Id == id);
+        var post = SelectedFeed.Posts.FirstOrDefault(e => e.Id == id);
 
         if (post == null)
         {
@@ -171,5 +206,29 @@ public class UserFeedService(PostDbService dbService, IndexedDbImageService inde
         }
 
         post.ToggleLock();
+    }
+
+    private async Task<List<Post>> GetPostsWithUpdatedBlobs(Guid feedId)
+    {
+        var posts = await dbService.GetPostsByFeedAsync(feedId);
+
+        foreach (var post in posts)
+        {
+            if (string.IsNullOrEmpty(post.BlobKey))
+            {
+                continue;
+            }
+
+            var blobUrl = await imageService.GetBlobUrlAsync(post.BlobKey);
+
+            if (blobUrl == null)
+            {
+                continue;
+            }
+
+            post.UpdateUrl(post.BlobKey, blobUrl);
+        }
+
+        return posts;
     }
 }

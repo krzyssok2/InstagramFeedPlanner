@@ -2,9 +2,11 @@
 
 namespace InstagramFeedPlanner.Models;
 
-public class Post
+public class Post(Guid id, Guid feedId)
 {
-    public Guid Id { get; set; } = new Guid();
+    public Guid Id { get; set; } = id;
+
+    public Guid FeedId { get; set; } = feedId;
 
     public uint Position { get; set; }
 
