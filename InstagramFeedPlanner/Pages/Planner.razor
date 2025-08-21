@@ -167,7 +167,7 @@ else
                     }
 
                     var file = e.dataTransfer.files[0];
-                    var isImage = file.type.startsWith('image/') || ['jpg','jpeg','png','gif','bmp','webp']
+                    var isImage = file.type.startsWith('image/') || ['jpg','jpeg','png','webp']
                             .includes(file.name.split('.').pop().toLowerCase());
 
                     if (isImage) {
