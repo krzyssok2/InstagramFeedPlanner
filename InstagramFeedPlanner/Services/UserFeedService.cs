@@ -8,8 +8,6 @@ public class UserFeedService(FeedAndPostDbService dbService, IndexedDbImageServi
 
     public Feed SelectedFeed { get; private set; } = null!;
 
-    //public List<Post> Posts { get; private set; } = null!;
-
     public async Task Initialize()
     {
         if (Feeds != null)
@@ -230,5 +228,31 @@ public class UserFeedService(FeedAndPostDbService dbService, IndexedDbImageServi
         }
 
         return posts;
+    }
+
+    public async Task DeleteFeed(Guid id)
+    {
+        var feed = Feeds.FirstOrDefault(i => i.Id == id);
+
+        if (feed == null)
+        {
+            return;
+        }
+
+        if (SelectedFeed.Id == id)
+        {
+            var newSelectedFeed = Feeds.FirstOrDefault(i => i.Id != id);
+
+            if (newSelectedFeed == null)
+            {
+                await AddNewFeed();
+                return;
+            }
+
+            SelectedFeed = newSelectedFeed;
+        }
+
+        Feeds.Remove(feed);
+        await dbService.DeleteFeedAsync(feed.Id);
     }
 }

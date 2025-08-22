@@ -32,6 +32,19 @@ public partial class Planner(IJSRuntime js, UserFeedService FeedService, Indexed
         await FeedService.SelectFeed(SelectedFeedId!.Value);
     }
 
+    private async Task SelectFeed(Guid id)
+    {
+        SelectedFeedId = id;
+        await FeedService.SelectFeed(id);
+    }
+
+    private async Task DeleteFeed(Guid id)
+    {
+        await FeedService.DeleteFeed(id);
+        SelectedFeedId = FeedService.SelectedFeed?.Id;
+        StateHasChanged();
+    }
+
     private Guid? draggedItemId;
     private Post? adjustingElement;
 

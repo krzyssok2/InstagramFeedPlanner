@@ -12,7 +12,8 @@ export async function initDb(dbName, version) {
             }
 
             if (!db.objectStoreNames.contains("posts")) {
-                db.createObjectStore("posts", { keyPath: "id" });
+                const postStore = db.createObjectStore("posts", { keyPath: "id" });
+                postStore.createIndex("feedId", "feedId", { unique: false });
             }
         };
 
@@ -54,12 +55,25 @@ export async function updateFeed(feed) {
 
 export async function deleteFeed(id) {
     return new Promise((resolve, reject) => {
-        const tx = db.transaction("feeds", "readwrite");
-        const store = tx.objectStore("feeds");
-        const request = store.delete(id);
+        const tx = db.transaction(["feeds", "posts"], "readwrite");
 
-        request.onsuccess = () => resolve();
-        request.onerror = (e) => reject(e.target.error);
+        const feedStore = tx.objectStore("feeds");
+        const postStore = tx.objectStore("posts");
+        const index = postStore.index("feedId");
+
+        feedStore.delete(id);
+
+        const cursorRequest = index.openCursor(IDBKeyRange.only(id));
+        cursorRequest.onsuccess = (e) => {
+            const cursor = e.target.result;
+            if (cursor) {
+                postStore.delete(cursor.primaryKey);
+                cursor.continue();
+            }
+        };
+
+        tx.oncomplete = () => resolve();
+        tx.onerror = (e) => reject(e.target.error);
     });
 }
 
@@ -151,12 +165,11 @@ export async function getPostsByFeed(feedId) {
     return new Promise((resolve, reject) => {
         const tx = db.transaction("posts", "readonly");
         const store = tx.objectStore("posts");
-        const request = store.getAll();
+        const index = store.index("feedId");
 
-        request.onsuccess = () => {
-            const results = (request.result || []).filter(p => p.feedId === feedId);
-            resolve(results);
-        };
+        const request = index.getAll(feedId);
+
+        request.onsuccess = () => resolve(request.result || []);
         request.onerror = (e) => reject(e.target.error);
     });
 }

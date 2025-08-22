@@ -1,71 +1,74 @@
-﻿@using InstagramFeedPlanner.Components
-@using InstagramFeedPlanner.Components.Icons
-@using InstagramFeedPlanner.Extensions
-@using InstagramFeedPlanner.Models
-
-@page "/planner"
+﻿@page "/planner"
 
 <PageTitle>Planner</PageTitle>
 
 @if (FeedService?.SelectedFeed?.Posts != null)
 {
-    <button @onclick="() => AddNewFeed()">Add new Feed</button>
-    <br />
+    <div class="planner-wrapper">
+        <div class="feed-selector">
+            <button @onclick="() => AddNewFeed()">Add new Feed</button>
+            <br />
 
-    <select @bind="SelectedFeedId" @bind:after="OnFeedChanged">
-        <option value="0">Select a feed...</option>
-        @foreach (var feed in FeedService.Feeds)
-        {
-            <option value="@feed.Id">@feed.Name</option>
-        }
-    </select>
-    <br />
-
-    <button @onclick="() => AddEmptyPost()">Add</button>
-
-    <div class="planner-page">
-        <div class="feed-grid">
-            @foreach (var post in FeedService.SelectedFeed.Posts.OrderByDescending(e => e.Position))
-            {
-                <div @key="post.Id"
-                     class="feed-item"
-                     ondragover="event.preventDefault();"
-                     draggable="@(post.IsLocked ? "false" : "true")"
-                     @ondragstart="() => OnDragStart(post.Id)"
-                     @ondrop="(e) => OnDrop(post.Id, e)">
-
-                    @if(!post.IsLocked)
-                    {
-                        <button class="delete-button" @onclick="() => OnPostDelete(post.Id)" @onclick:stopPropagation>
-                            <XIcon StrokeThickness="4" />
+            <div class="feed-list">
+                @foreach (var feed in FeedService.Feeds)
+                {
+                    <div class="feed-option @(SelectedFeedId == feed.Id ? "selected" : "")"
+                         @onclick="() => SelectFeed(feed.Id)">
+                        <span>@feed.Name</span>
+                        <button class="delete-feed-btn" @onclick="(e) => DeleteFeed(feed.Id)" @onclick:stopPropagation>
+                            <XIcon StrokeThickness="2" />
                         </button>
-                    }
+                    </div>
+                }
+            </div>
+        </div>
 
-                    <button class="icon-button" @onclick="() => OnLock(post.Id)" @onclick:stopPropagation>
-                        @if(post.IsLocked)
-                        {
-                            <PaddleLocked StrokeThickness="2" />
-                        }
-                        else
-                        {
-                            <PaddleUnlocked StrokeThickness="2" />
-                        }
-                    </button>
+        <div class="planner-page">
+            <button @onclick="() => AddEmptyPost()">Add</button>
 
-                    @if (!post.IsLocked && !string.IsNullOrEmpty(post.Url))
-                    {
-                        <button class="icon-button" style="margin-top: 32px;" @onclick="() => OnAdjust(post)" @onclick:stopPropagation>
-                            <Wrench StrokeThickness="2" />
+            <div class="feed-grid">
+                @foreach (var post in FeedService.SelectedFeed.Posts.OrderByDescending(e => e.Position))
+                {
+                    <div @key="post.Id"
+                         class="feed-item"
+                         ondragover="event.preventDefault();"
+                         draggable="@(post.IsLocked ? "false" : "true")"
+                         @ondragstart="() => OnDragStart(post.Id)"
+                         @ondrop="(e) => OnDrop(post.Id, e)">
+
+                        @if (!post.IsLocked)
+                        {
+                            <button class="delete-button" @onclick="() => OnPostDelete(post.Id)" @onclick:stopPropagation>
+                                <XIcon StrokeThickness="4" />
+                            </button>
+                        }
+
+                        <button class="icon-button" @onclick="() => OnLock(post.Id)" @onclick:stopPropagation>
+                            @if (post.IsLocked)
+                            {
+                                <PaddleLocked StrokeThickness="2" />
+                            }
+                            else
+                            {
+                                <PaddleUnlocked StrokeThickness="2" />
+                            }
                         </button>
-                    }
 
-                    @if (!string.IsNullOrEmpty(post.Url))
-                    {
-                        <img src="@post.Url" style="@GetCropStyle(post.CropData)" draggable="@(post.IsLocked ? "false" : "true")" />
-                    }
+                        @if (!post.IsLocked && !string.IsNullOrEmpty(post.Url))
+                        {
+                            <button class="icon-button" style="margin-top: 32px;" @onclick="() => OnAdjust(post)" @onclick:stopPropagation>
+                                <Wrench StrokeThickness="2" />
+                            </button>
+                        }
 
-                </div>
-            }
+                        @if (!string.IsNullOrEmpty(post.Url))
+                        {
+                            <img src="@post.Url" style="@GetCropStyle(post.CropData)" draggable="@(post.IsLocked ? "false" : "true")" />
+                        }
+
+                    </div>
+                }
+            </div>
         </div>
     </div>
 }
@@ -79,13 +82,64 @@ else
 {
     <div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:1000;">
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:10px; aspect-ratio:4/5; width:90vw; max-width:500px; height:auto;">
-            <AspectCropper2 Src="@adjustingElement.Url" OnConfirm="@(result => OnCropConfirmed(result))" CropData="@adjustingElement.CropData.ToCropDataModel()" />
+            <AspectCropper Src="@adjustingElement.Url" OnConfirm="@(result => OnCropConfirmed(result))" CropData="@adjustingElement.CropData.ToCropDataModel()" />
             <button @onclick="CancelAdjust">Cancel</button>
         </div>
     </div>
 }
 
 <style>
+    .planner-wrapper {
+        display: flex;
+        height: var(--full-page-height);
+    }
+
+    /* Left column */
+    .feed-selector {
+        width: 250px;
+        border-right: 1px solid #ccc;
+        padding: 10px;
+        overflow-y: auto;
+    }
+
+    .feed-list {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .feed-option {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 10px;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+    }
+
+        .feed-option:hover {
+            background: #f5f5f5;
+        }
+
+        /* Glowing selected feed */
+        .feed-option.selected {
+            border: 1px solid #007bff;
+            box-shadow: 0 0 8px #007bff;
+            background: #eef6ff;
+        }
+
+    /* Delete button for feeds */
+    .delete-feed-btn {
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        padding: 2px;
+        display: flex;
+        align-items: center;
+    }
+
     .delete-button {
         position: absolute;
         top: 0px; /* adjust as needed */
@@ -105,20 +159,21 @@ else
         top: 0px; /* adjust as needed */
         left: 0px; /* adjust as needed */
         margin-left: auto;
-        border-width:2px;
-        height:32px;
-        width:32px;
-        padding:0px;
+        border-width: 2px;
+        height: 32px;
+        width: 32px;
+        padding: 0px;
         cursor: pointer;
         transition: 0.2s ease-in-out;
         z-index: 1;
     }
 
     .planner-page {
-        border: 1px solid;        
-        height: var(--full-page-height);
+        border: 1px solid;
+        height: 100%;
+        width:100%;
         overflow-x: hidden;
-        overflow-y:scroll;
+        overflow-y: scroll;
         max-height: var(--full-page-height);
     }
 
@@ -134,12 +189,12 @@ else
     }
 
     .feed-item {
-        aspect-ratio : 4 / 5;
+        aspect-ratio: 4 / 5;
         width: 324px; /* fill grid cell */
         height: 405px; /* allow height to be automatic */
         background: gray;
         max-width: 324px;
-        max-height:405px;
+        max-height: 405px;
         position: relative;
         overflow: clip;
     }
