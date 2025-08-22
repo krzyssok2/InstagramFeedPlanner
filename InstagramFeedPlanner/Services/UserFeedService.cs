@@ -39,9 +39,10 @@ public class UserFeedService(FeedAndPostDbService dbService, IndexedDbImageServi
     {
         var guid = Guid.NewGuid();
 
-        var newFeed = new Feed(guid, $"New Feed - {guid}");
-
-        newFeed.Posts = new List<Post>();
+        var newFeed = new Feed(guid, $"Feed - {Feeds.Count + 1}")
+        {
+            Posts = []
+        };
 
         Feeds.Add(newFeed);
         _ = dbService.AddFeedAsync(newFeed);
@@ -239,20 +240,41 @@ public class UserFeedService(FeedAndPostDbService dbService, IndexedDbImageServi
             return;
         }
 
+        Feeds.Remove(feed);
+
         if (SelectedFeed.Id == id)
         {
-            var newSelectedFeed = Feeds.FirstOrDefault(i => i.Id != id);
+            var newSelectedFeed = Feeds.FirstOrDefault();
 
             if (newSelectedFeed == null)
             {
                 await AddNewFeed();
-                return;
             }
-
-            SelectedFeed = newSelectedFeed;
+            else
+            {
+                SelectedFeed = newSelectedFeed;
+            }
         }
 
-        Feeds.Remove(feed);
         await dbService.DeleteFeedAsync(feed.Id);
+    }
+
+    public async Task RenameFeed(Guid id, string name)
+    {
+        var feed = Feeds.FirstOrDefault(i => i.Id == id);
+
+        if (feed == null)
+        {
+            return;
+        }
+
+        if (feed.Name.Equals(name))
+        {
+            return;
+        }
+
+        feed.Rename(name);
+
+        await dbService.UpdateFeedAsync(feed);
     }
 }

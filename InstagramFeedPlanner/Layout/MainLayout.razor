@@ -1,7 +1,7 @@
 ﻿@inherits LayoutComponentBase
 @* @inject ThemeService ThemeService; *@
 
-<div class="layout-wrapper dark-mode">
+<div class="layout-wrapper white-mode">
     <div class="topbar">
         <TopBar />
     </div>
@@ -102,27 +102,6 @@
             background: linear-gradient(to right, var(--text) 0%, var(--accent) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-        }
-
-        .layout-wrapper .icon-container{
-            background: var(--primary);
-        }
-
-        .layout-wrapper .plate-search-container{
-            background: var(--primary);
-        }
-
-        .layout-wrapper .fake-button{
-            padding: 1px;
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border: solid 2px;
-
-        }
-        .layout-wrapper .fake-button:hover {
-            background-color: var(--secondary);
         }
 
     .topbar {

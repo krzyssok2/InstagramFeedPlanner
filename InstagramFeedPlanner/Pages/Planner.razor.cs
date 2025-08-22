@@ -8,8 +8,6 @@ namespace InstagramFeedPlanner.Pages;
 
 public partial class Planner(IJSRuntime js, UserFeedService FeedService, IndexedDbImageService indexedDbImageService)
 {
-    private Guid? SelectedFeedId = null;
-
     private DotNetObjectReference<Planner>? objRef;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -21,27 +19,25 @@ public partial class Planner(IJSRuntime js, UserFeedService FeedService, Indexed
 
             await FeedService.Initialize();
 
-            SelectedFeedId = FeedService.SelectedFeed.Id;
-
             StateHasChanged();
         }
     }
 
-    private async Task OnFeedChanged()
+    private async Task RenameFeed((Guid feedId, string newName) renameInfo)
     {
-        await FeedService.SelectFeed(SelectedFeedId!.Value);
+        await FeedService.RenameFeed(renameInfo.feedId, renameInfo.newName);
+        StateHasChanged();
     }
 
     private async Task SelectFeed(Guid id)
     {
-        SelectedFeedId = id;
         await FeedService.SelectFeed(id);
+        StateHasChanged();
     }
 
     private async Task DeleteFeed(Guid id)
     {
         await FeedService.DeleteFeed(id);
-        SelectedFeedId = FeedService.SelectedFeed?.Id;
         StateHasChanged();
     }
 
@@ -53,7 +49,7 @@ public partial class Planner(IJSRuntime js, UserFeedService FeedService, Indexed
     private async Task AddNewFeed()
     {
         await FeedService.AddNewFeed();
-        SelectedFeedId = FeedService.SelectedFeed.Id;
+        //SelectedFeedId = FeedService.SelectedFeed.Id;
     }
 
     private void OnPostDelete(Guid id) => FeedService.DeletePost(id);
@@ -119,7 +115,7 @@ public partial class Planner(IJSRuntime js, UserFeedService FeedService, Indexed
                $"transform-origin:top left;";
     }
 
-    private async Task OnCropConfirmed((string _, CropDataModel cropData) result)
+    private void OnCropConfirmed((string _, CropDataModel cropData) result)
     {
         if (adjustingElement != null)
         {

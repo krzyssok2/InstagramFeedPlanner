@@ -12,4 +12,6 @@ public class Feed(Guid id, string name)
 
     [JsonIgnore]
     public List<Post>? Posts { get; set; } = null;
+
+    public void Rename(string name) => Name = name;
 }

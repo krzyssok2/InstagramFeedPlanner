@@ -5,26 +5,15 @@
 @if (FeedService?.SelectedFeed?.Posts != null)
 {
     <div class="planner-wrapper">
-        <div class="feed-selector">
-            <button @onclick="() => AddNewFeed()">Add new Feed</button>
-            <br />
-
-            <div class="feed-list">
-                @foreach (var feed in FeedService.Feeds)
-                {
-                    <div class="feed-option @(SelectedFeedId == feed.Id ? "selected" : "")"
-                         @onclick="() => SelectFeed(feed.Id)">
-                        <span>@feed.Name</span>
-                        <button class="delete-feed-btn" @onclick="(e) => DeleteFeed(feed.Id)" @onclick:stopPropagation>
-                            <XIcon StrokeThickness="2" />
-                        </button>
-                    </div>
-                }
-            </div>
-        </div>
+        <FeedSidebar Feeds="FeedService.Feeds"
+                      SelectedFeedId="FeedService.SelectedFeed.Id"
+                      OnFeedSelected="SelectFeed"
+                      OnDeleteFeed="DeleteFeed"
+                      OnAddNewFeed="AddNewFeed"
+                      OnRenameFeed="RenameFeed" />
 
         <div class="planner-page">
-            <button @onclick="() => AddEmptyPost()">Add</button>
+            <button class="planner-button" @onclick="() => AddEmptyPost()">Add new Post</button>
 
             <div class="feed-grid">
                 @foreach (var post in FeedService.SelectedFeed.Posts.OrderByDescending(e => e.Position))
@@ -43,7 +32,7 @@
                             </button>
                         }
 
-                        <button class="icon-button" @onclick="() => OnLock(post.Id)" @onclick:stopPropagation>
+                        <button class="icon-button2" @onclick="() => OnLock(post.Id)" @onclick:stopPropagation>
                             @if (post.IsLocked)
                             {
                                 <PaddleLocked StrokeThickness="2" />
@@ -56,7 +45,7 @@
 
                         @if (!post.IsLocked && !string.IsNullOrEmpty(post.Url))
                         {
-                            <button class="icon-button" style="margin-top: 32px;" @onclick="() => OnAdjust(post)" @onclick:stopPropagation>
+                            <button class="icon-button2" style="margin-top: 34px;" @onclick="() => OnAdjust(post)" @onclick:stopPropagation>
                                 <Wrench StrokeThickness="2" />
                             </button>
                         }
@@ -71,6 +60,7 @@
             </div>
         </div>
     </div>
+    
 }
 else
 {
@@ -89,87 +79,51 @@ else
 }
 
 <style>
+    .planner-button
+    {
+        width: 100%;
+        margin-bottom: 2px;
+        border-left:0px;
+        border-right:0px;
+        border-top:0px;
+        border-bottom:1px solid black;
+    }
+
     .planner-wrapper {
         display: flex;
+        border:1px solid #ccc;
         height: var(--full-page-height);
-    }
-
-    /* Left column */
-    .feed-selector {
-        width: 250px;
-        border-right: 1px solid #ccc;
-        padding: 10px;
-        overflow-y: auto;
-    }
-
-    .feed-list {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-    }
-
-    .feed-option {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 6px 10px;
-        border: 1px solid transparent;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all 0.2s ease-in-out;
-    }
-
-        .feed-option:hover {
-            background: #f5f5f5;
-        }
-
-        /* Glowing selected feed */
-        .feed-option.selected {
-            border: 1px solid #007bff;
-            box-shadow: 0 0 8px #007bff;
-            background: #eef6ff;
-        }
-
-    /* Delete button for feeds */
-    .delete-feed-btn {
-        border: none;
-        background: transparent;
-        cursor: pointer;
-        padding: 2px;
-        display: flex;
-        align-items: center;
     }
 
     .delete-button {
         position: absolute;
-        top: 0px; /* adjust as needed */
-        right: 0px; /* adjust as needed */
-        margin-left: auto;
-        border-width: 2px;
-        height: 32px;
-        width: 32px;
-        padding: 0px;
+        top: 2px; /* adjust as needed */
+        right: 2px; /* adjust as needed */
+        border: 1px solid;
+        background: transparent;
         cursor: pointer;
-        transition: 0.2s ease-in-out;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        border-radius: 3px;
         z-index: 1;
     }
 
-    .icon-button {
+    .icon-button2{
         position: absolute;
-        top: 0px; /* adjust as needed */
-        left: 0px; /* adjust as needed */
-        margin-left: auto;
-        border-width: 2px;
-        height: 32px;
-        width: 32px;
-        padding: 0px;
+        top: 2px; /* adjust as needed */
+        left: 2px; /* adjust as needed */
+        border: none;
+        border: 1px solid;
         cursor: pointer;
-        transition: 0.2s ease-in-out;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        border-radius: 3px;
         z-index: 1;
     }
 
     .planner-page {
-        border: 1px solid;
         height: 100%;
         width:100%;
         overflow-x: hidden;
@@ -192,7 +146,7 @@ else
         aspect-ratio: 4 / 5;
         width: 324px; /* fill grid cell */
         height: 405px; /* allow height to be automatic */
-        background: gray;
+        background: #ccc;
         max-width: 324px;
         max-height: 405px;
         position: relative;
