@@ -18,44 +18,13 @@
             <div class="feed-grid">
                 @foreach (var post in FeedService.SelectedFeed.Posts.OrderByDescending(e => e.Position))
                 {
-                    <div @key="post.Id"
-                         class="feed-item"
-                         ondragover="event.preventDefault();"
-                         draggable="@(post.IsLocked ? "false" : "true")"
-                         @ondragstart="() => OnDragStart(post.Id)"
-                         @ondrop="(e) => OnDrop(post.Id, e)">
-
-                        @if (!post.IsLocked)
-                        {
-                            <button class="delete-button" @onclick="() => OnPostDelete(post.Id)" @onclick:stopPropagation>
-                                <XIcon StrokeThickness="4" />
-                            </button>
-                        }
-
-                        <button class="icon-button2" @onclick="() => OnLock(post.Id)" @onclick:stopPropagation>
-                            @if (post.IsLocked)
-                            {
-                                <PaddleLocked StrokeThickness="2" />
-                            }
-                            else
-                            {
-                                <PaddleUnlocked StrokeThickness="2" />
-                            }
-                        </button>
-
-                        @if (!post.IsLocked && !string.IsNullOrEmpty(post.Url))
-                        {
-                            <button class="icon-button2" style="margin-top: 34px;" @onclick="() => OnAdjust(post)" @onclick:stopPropagation>
-                                <Wrench StrokeThickness="2" />
-                            </button>
-                        }
-
-                        @if (!string.IsNullOrEmpty(post.Url))
-                        {
-                            <img src="@post.Url" style="@GetCropStyle(post.CropData)" draggable="@(post.IsLocked ? "false" : "true")" />
-                        }
-
-                    </div>
+                    <FeedItem @key="post.Id"
+                              Post="post"
+                              OnDelete="OnPostDelete"
+                              OnToggleLock="OnLock"
+                              OnAdjust="OnAdjust"
+                              OnDragStart="OnDragStart"
+                              OnDrop="OnDrop" />
                 }
             </div>
         </div>
@@ -79,49 +48,20 @@ else
 }
 
 <style>
+    .planner-wrapper {
+        display: flex;
+        border: 1px solid #ccc;
+        height: var(--full-page-height);
+    }
+
     .planner-button
     {
         width: 100%;
-        margin-bottom: 2px;
         border-left:0px;
         border-right:0px;
         border-top:0px;
         border-bottom:1px solid black;
-    }
-
-    .planner-wrapper {
-        display: flex;
-        border:1px solid #ccc;
-        height: var(--full-page-height);
-    }
-
-    .delete-button {
-        position: absolute;
-        top: 2px; /* adjust as needed */
-        right: 2px; /* adjust as needed */
-        border: 1px solid;
-        background: transparent;
-        cursor: pointer;
-        padding: 4px;
-        display: flex;
-        align-items: center;
-        border-radius: 3px;
-        z-index: 1;
-    }
-
-    .icon-button2{
-        position: absolute;
-        top: 2px; /* adjust as needed */
-        left: 2px; /* adjust as needed */
-        border: none;
-        border: 1px solid;
-        cursor: pointer;
-        padding: 4px;
-        display: flex;
-        align-items: center;
-        border-radius: 3px;
-        z-index: 1;
-    }
+    }    
 
     .planner-page {
         height: 100%;
@@ -134,23 +74,13 @@ else
     .feed-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
+        padding: 2px 5px;
         gap: 1px;
         max-width: 972px;
         margin: 0 auto;
         user-select: none;
         -webkit-user-select: none; /* Safari */
         -ms-user-select: none; /* old IE/Edge */
-    }
-
-    .feed-item {
-        aspect-ratio: 4 / 5;
-        width: 324px; /* fill grid cell */
-        height: 405px; /* allow height to be automatic */
-        background: #ccc;
-        max-width: 324px;
-        max-height: 405px;
-        position: relative;
-        overflow: clip;
     }
 </style>
 

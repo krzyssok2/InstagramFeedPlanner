@@ -106,7 +106,6 @@
 .delete-feed-btn,
 .rename-confirm-btn {
     border: 1px solid;
-    background: transparent;
     cursor: pointer;
     padding: 4px;
     display: flex;

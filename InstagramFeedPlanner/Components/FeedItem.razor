@@ -1,0 +1,160 @@
+﻿<div @ref="FeedItemRef" @key=Post.Id class="feed-item"
+     ondragover="event.preventDefault();"
+     draggable="@(Post.IsLocked ? "false" : "true")"
+     @ondragstart="() => OnDragStart.InvokeAsync(Post.Id)"
+     @ondrop="(e) => OnDrop.InvokeAsync((Post.Id, e))">
+
+    <div class="feed-item-controls-left">
+
+        <button class="control-button"
+                @onclick="() => OnToggleLock.InvokeAsync(Post.Id)"
+                @onclick:stopPropagation
+                title="@(Post.IsLocked ? "Unlock post" : "Lock post")">
+            @if (Post.IsLocked)
+            {
+                <PaddleLocked />
+            }
+            else
+            {
+                <PaddleUnlocked />
+            }
+        </button>
+
+        @if (!Post.IsLocked && !string.IsNullOrEmpty(Post.Url))
+        {
+            <button class="control-button"
+                    @onclick="() => OnAdjust.InvokeAsync(Post)"
+                    @onclick:stopPropagation
+                    title="Adjust crop">
+                <Wrench />
+            </button>
+        }        
+    </div>
+
+    <div class="feed-item-controls-right">
+        @if (!Post.IsLocked)
+        {
+            <button class="control-button"
+                    @onclick="() => OnDelete.InvokeAsync(Post.Id)"
+                    @onclick:stopPropagation
+                    title="Delete post">
+                <XIcon StrokeThickness="4" />
+            </button>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(Post.Url))
+    {
+        <img src="@Post.Url"
+             style="@GetCropStyle(Post.CropData, FeedItemWidth, FeedItemHeight)"
+             draggable="@(Post.IsLocked ? "false" : "true")" />
+    }
+</div>
+
+@code {
+    private ElementReference FeedItemRef;
+    private double FeedItemWidth;
+    private double FeedItemHeight;
+
+    [Inject] private IJSRuntime JS { get; set; } = null!;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("resizeObserver.observe", FeedItemRef, DotNetObjectReference.Create(this));
+        }
+    }
+
+    [JSInvokable]
+    public void OnResized(double width, double height)
+    {
+        FeedItemWidth = width;
+        FeedItemHeight = height;
+        StateHasChanged();
+    }
+
+    [Parameter] public Post Post { get; set; } = null!;
+    [Parameter] public EventCallback<Guid> OnDelete { get; set; }
+    [Parameter] public EventCallback<Guid> OnToggleLock { get; set; }
+    [Parameter] public EventCallback<Post> OnAdjust { get; set; }
+    [Parameter] public EventCallback<Guid> OnDragStart { get; set; }
+    [Parameter] public EventCallback<(Guid PostId, DragEventArgs Args)> OnDrop { get; set; }
+
+    // TODO: Potentially might need to redo this
+    private const double PreviewWidth = 400;
+
+    private string GetCropStyle(CropData? crop, double containerWidth, double containerHeight)
+    {
+        if (crop == null || crop.Scale == 0)
+        {
+            return $"width:{FeedItemWidth}px; height:{FeedItemHeight}px; position:absolute; object-fit: scale-down";
+        }
+
+        
+        var sizeAdjustment = containerWidth / PreviewWidth;
+
+        return $"position:absolute;" +
+               $"transform:translate({crop.PosX * sizeAdjustment}px, {crop.PosY * sizeAdjustment}px) scale({crop.Scale * sizeAdjustment});" +
+               $"transform-origin:top left;";
+    }
+}
+
+<script>
+    window.resizeObserver = {
+        observe: function (element, dotNetHelper) {
+            if (!element) return;
+            const ro = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    const { width, height } = entry.contentRect;
+                    dotNetHelper.invokeMethodAsync('OnResized', width, height);
+                }
+            });
+            ro.observe(element);
+            element._resizeObserver = ro;
+        },
+        unobserve: function (element) {
+            if (element && element._resizeObserver) {
+                element._resizeObserver.disconnect();
+                element._resizeObserver = null;
+            }
+        }
+    };
+</script>
+
+<style>
+    .feed-item {
+        aspect-ratio: 4 / 5;
+        width: 100%;
+        max-width: 324px;
+        background: #ccc;
+        position: relative;
+        overflow: hidden;
+        user-select: none;
+        -webkit-user-select: none;
+        -ms-user-select: none;
+    }
+
+    .feed-item-controls-left {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        z-index:1;
+    }
+
+    .feed-item-controls-right {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        z-index: 1;
+    }
+
+    .control-button {
+        border: 1px solid;
+        cursor: pointer;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        border-radius: 3px;
+    }
+</style>

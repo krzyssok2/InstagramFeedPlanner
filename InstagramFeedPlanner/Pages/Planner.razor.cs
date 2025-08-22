@@ -49,7 +49,7 @@ public partial class Planner(IJSRuntime js, UserFeedService FeedService, Indexed
     private async Task AddNewFeed()
     {
         await FeedService.AddNewFeed();
-        //SelectedFeedId = FeedService.SelectedFeed.Id;
+        StateHasChanged();
     }
 
     private void OnPostDelete(Guid id) => FeedService.DeletePost(id);
@@ -62,11 +62,11 @@ public partial class Planner(IJSRuntime js, UserFeedService FeedService, Indexed
 
     private void OnDragStart(Guid id) => draggedItemId = id;
 
-    private async Task OnDrop(Guid id, DragEventArgs e)
+    private async Task OnDrop((Guid PostId, DragEventArgs Args) result)
     {
         if (draggedItemId != null)
         {
-            HandlePostDrop(draggedItemId.Value, id, e);
+            HandlePostDrop(draggedItemId.Value, result.PostId, result.Args);
 
             draggedItemId = null;
             StateHasChanged();
@@ -83,7 +83,7 @@ public partial class Planner(IJSRuntime js, UserFeedService FeedService, Indexed
 
             if (blobUrl != null)
             {
-                FeedService.InitializeImage(id, blobKey, blobUrl);
+                FeedService.InitializeImage(result.PostId, blobKey, blobUrl);
                 return;
             }
             StateHasChanged();
@@ -100,19 +100,6 @@ public partial class Planner(IJSRuntime js, UserFeedService FeedService, Indexed
         {
             FeedService.InsertPostIntoPosition(draggedPost, targetPost);
         }
-    }
-
-    private static string GetCropStyle(CropData? crop)
-    {
-        if (crop == null || crop.Scale == 0)
-        {
-            return "width:324px; height:405px; position:absolute; object-fit: scale-down";
-        }
-
-        // 0.81 - Current container size / preview size TODO: potentially provide cropper container size
-        return $"position:absolute;" +
-               $"transform:translate({crop.PosX * 0.81}px, {crop.PosY * 0.81}px) scale({crop.Scale * 0.81});" +
-               $"transform-origin:top left;";
     }
 
     private void OnCropConfirmed((string _, CropDataModel cropData) result)
