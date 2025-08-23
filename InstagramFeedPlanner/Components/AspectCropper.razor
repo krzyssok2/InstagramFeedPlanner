@@ -4,12 +4,13 @@
              @onpointerdown="OnPointerDown"
              @onpointermove="OnPointerMove"
              @onpointerup="OnPointerUp"
-             @onpointerleave="OnPointerUp">
+             @onpointerleave="OnPointerUp"
+             style="width: @(CropWidth)px; height: @(CropHeight)px;">
             <div class="crop-box"></div>
             <img @ref="ImageRef" src="@Src" class="crop-image" />
         </div>
 
-        <div class="zoom-slider-wrapper">
+        <div class="zoom-slider-wrapper" style="width: @(CropWidth)px;">
             <input type="range" min="0" max="100" value="@ZoomValue" @oninput="OnSliderChanged" />
         </div>
 
@@ -24,6 +25,7 @@
     </div>
 </div>
 
+@implements IAsyncDisposable
 @using InstagramFeedPlanner.Components
 @using InstagramFeedPlanner.Models
 
@@ -32,6 +34,7 @@
     [Parameter] public EventCallback<(string croppedUrl, CropDataModel cropData)> OnConfirm { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
     [Parameter] public CropDataModel CropData { get; set; } = new CropDataModel();
+    [Parameter] public double AspectRatio { get; set; } = 0.8; // Default Instagram aspect ratio (4:5)
 
     private ElementReference ImageRef;
     private ElementReference Wrapper;
@@ -46,12 +49,53 @@
     private double StartY { get; set; } = 0;
     private double ImgWidth { get; set; }
     private double ImgHeight { get; set; }
-    private double CropWidth { get; set; }
-    private double CropHeight { get; set; }
+    private double CropWidth { get; set; } = 400;
+    private double CropHeight { get; set; } = 500;
 
     private string? CroppedImageDataUrl;
 
     [Inject] private IJSRuntime JS { get; set; } = default!;
+
+    private DotNetObjectReference<AspectCropper>? dotNetRef;
+    private bool isDisposed = false;
+
+    private async Task CalculateOptimalSize()
+    {
+        try
+        {
+            var windowSize = await JS.InvokeAsync<WindowSize>("getWindowSize");
+
+            // Calculate available space (leaving margins for UI elements)
+            var availableWidth = windowSize.Width - 100; // Leave 50px margin on each side
+            var availableHeight = windowSize.Height - 200; // Leave space for buttons, slider, etc.
+
+            // Define size ranges
+            var minWidth = 300;
+            var maxWidth = 600;
+            var minHeight = 375; // minWidth / aspectRatio
+            var maxHeight = 750; // maxWidth / aspectRatio
+
+            // Calculate optimal dimensions based on available space
+            var optimalWidth = Math.Min(Math.Max(availableWidth, minWidth), maxWidth);
+            var optimalHeight = optimalWidth / AspectRatio;
+
+            // Adjust if height exceeds available space
+            if (optimalHeight > availableHeight)
+            {
+                optimalHeight = Math.Min(Math.Max(availableHeight, minHeight), maxHeight);
+                optimalWidth = optimalHeight * AspectRatio;
+            }
+
+            CropWidth = optimalWidth;
+            CropHeight = optimalHeight;
+        }
+        catch
+        {
+            // Fallback to default sizes if JS call fails
+            CropWidth = 400;
+            CropHeight = 500;
+        }
+    }
 
     private async Task OnSliderChanged(ChangeEventArgs e)
     {
@@ -80,20 +124,154 @@
     {
         if (firstRender)
         {
-            var cropperInfo = await JS.InvokeAsync<CropperInitInfo>("initInstagramStyleCropperInfo", ImageRef, Wrapper);
-            MinScale = cropperInfo.MinScale;
-            Scale = CropData.Scale > 0 ? CropData.Scale : MinScale;
-            ZoomValue = CropData.ZoomValue;
-            PosX = CropData.PosX != 0 ? CropData.PosX : cropperInfo.PosX;
-            PosY = CropData.PosY != 0 ? CropData.PosY : cropperInfo.PosY;
-            ImgWidth = cropperInfo.ImgWidth;
-            ImgHeight = cropperInfo.ImgHeight;
-            CropWidth = cropperInfo.CropWidth;
-            CropHeight = cropperInfo.CropHeight;
-            ClampPosition();
-            await SetTransformAsync();
+            // Create reference for JS callbacks
+            dotNetRef = DotNetObjectReference.Create(this);
+
+            // Store original preview dimensions from crop data
+            var originalPreviewWidth = CropData.PreviewWidth > 0 ? CropData.PreviewWidth : 400;
+            var originalPreviewHeight = CropData.PreviewHeight > 0 ? CropData.PreviewHeight : 500;
+
+            // Calculate optimal size first
+            await CalculateOptimalSize();
+
+            // Set up window resize listener
+            await JS.InvokeVoidAsync("setupWindowResizeListener", dotNetRef);
+
+            // Force re-render with new dimensions before initializing cropper
             StateHasChanged();
+
+            // Small delay to ensure DOM is updated
+            await Task.Delay(10);
+
+            await InitializeCropper(originalPreviewWidth, originalPreviewHeight);
         }
+    }
+
+    [JSInvokable]
+    public async Task OnWindowResize()
+    {
+        if (isDisposed) return;
+
+        // Store current crop state before resizing
+        var currentCropData = new CropDataModel
+        {
+            PosX = PosX,
+            PosY = PosY,
+            Scale = Scale,
+            ZoomValue = ZoomValue,
+            PreviewWidth = CropWidth,
+            PreviewHeight = CropHeight
+        };
+
+        var originalWidth = CropWidth;
+        var originalHeight = CropHeight;
+
+        // Recalculate optimal size
+        await CalculateOptimalSize();
+
+        // Only adjust if size actually changed
+        if (Math.Abs(originalWidth - CropWidth) > 1 || Math.Abs(originalHeight - CropHeight) > 1)
+        {
+            // Temporarily set crop data to the current state for adjustment
+            CropData = currentCropData;
+
+            // Adjust all crop values for the new preview size
+            AdjustCropDataForNewPreviewSize(originalWidth, originalHeight);
+
+            // Force re-render with new dimensions
+            StateHasChanged();
+            await Task.Delay(10);
+
+            // Update the image transform with adjusted values
+            await SetTransformAsync();
+        }
+    }
+
+    private async Task InitializeCropper(double originalPreviewWidth, double originalPreviewHeight)
+    {
+        var cropperInfo = await JS.InvokeAsync<CropperInitInfo>("initInstagramStyleCropperInfo", ImageRef, Wrapper);
+        MinScale = cropperInfo.MinScale;
+        ImgWidth = cropperInfo.ImgWidth;
+        ImgHeight = cropperInfo.ImgHeight;
+        CropWidth = cropperInfo.CropWidth;
+        CropHeight = cropperInfo.CropHeight;
+
+        // Adjust crop data if preview size has changed
+        if (HasExistingCropData() && (Math.Abs(originalPreviewWidth - CropWidth) > 1 || Math.Abs(originalPreviewHeight - CropHeight) > 1))
+        {
+            AdjustCropDataForNewPreviewSize(originalPreviewWidth, originalPreviewHeight);
+        }
+        else if (HasExistingCropData())
+        {
+            // Use existing crop data as-is
+            Scale = CropData.Scale;
+            ZoomValue = CropData.ZoomValue;
+            PosX = CropData.PosX;
+            PosY = CropData.PosY;
+        }
+        else
+        {
+            // Initialize with default values
+            Scale = MinScale;
+            ZoomValue = 0;
+            PosX = cropperInfo.PosX;
+            PosY = cropperInfo.PosY;
+        }
+
+        ClampPosition();
+        await SetTransformAsync();
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        isDisposed = true;
+        if (dotNetRef != null)
+        {
+            await JS.InvokeVoidAsync("removeWindowResizeListener");
+            dotNetRef.Dispose();
+        }
+    }
+
+    private bool HasExistingCropData()
+    {
+        return CropData.Scale > 0 || CropData.PosX != 0 || CropData.PosY != 0 || CropData.ZoomValue > 0;
+    }
+
+    private void AdjustCropDataForNewPreviewSize(double originalWidth, double originalHeight)
+    {
+        // Calculate scaling factors for the preview size change
+        var widthRatio = CropWidth / originalWidth;
+        var heightRatio = CropHeight / originalHeight;
+
+        // Adjust position values proportionally
+        PosX = CropData.PosX * widthRatio;
+        PosY = CropData.PosY * heightRatio;
+
+        // Calculate original and new minimum scales
+        var originalMinScale = Math.Max(originalWidth / ImgWidth, originalHeight / ImgHeight);
+        var newMinScale = Math.Max(CropWidth / ImgWidth, CropHeight / ImgHeight);
+
+        // Maintain the same scale ratio relative to minimum scale
+        var scaleRatio = CropData.Scale / originalMinScale;
+        Scale = newMinScale * scaleRatio;
+
+        // Update MinScale for the new preview size
+        MinScale = newMinScale;
+
+        // Recalculate zoom value based on the new scale range
+        var newMaxScale = newMinScale * 3;
+        var normalizedScale = Math.Max(0, Math.Min(1, (Scale - newMinScale) / (newMaxScale - newMinScale)));
+        ZoomValue = normalizedScale * 100;
+
+        // Ensure position stays within valid bounds after scaling
+        ClampPosition();
+
+        // Debug logging (can be removed in production)
+        Console.WriteLine($"Resize adjustment: {originalWidth}x{originalHeight} -> {CropWidth}x{CropHeight}");
+        Console.WriteLine($"Scale: {CropData.Scale} -> {Scale} (MinScale: {originalMinScale} -> {newMinScale})");
+        Console.WriteLine($"Position: ({CropData.PosX}, {CropData.PosY}) -> ({PosX}, {PosY})");
+        Console.WriteLine($"Zoom: {CropData.ZoomValue} -> {ZoomValue}");
     }
 
     private async Task SetTransformAsync()
@@ -152,8 +330,8 @@
                 PosY = PosY,
                 Scale = Scale,
                 ZoomValue = ZoomValue,
-                PreviewWidth = 400, //TODO: provide current image container size
-                PreviewHeight = 500 //TODO: provide current image container size
+                PreviewWidth = CropWidth,
+                PreviewHeight = CropHeight
             };
             await OnConfirm.InvokeAsync((CroppedImageDataUrl, cropData));
         }
@@ -170,10 +348,15 @@
         public double CropHeight { get; set; }
     }
 
+    private class WindowSize
+    {
+        public double Width { get; set; }
+        public double Height { get; set; }
+    }
 }
 
 <style>
-    .module-shade{
+    .module-shade {
         position: fixed;
         top: 0;
         left: 0;
@@ -183,7 +366,7 @@
         z-index: 1000;
     }
 
-    .module{
+    .module {
         position: absolute;
         top: 50%;
         left: 50%;
@@ -191,15 +374,18 @@
         background: white;
         padding: 15px;
         border-radius: 10px;
+        max-width: 90vw;
+        max-height: 90vh;
+        overflow: auto;
     }
 
     .cropper-wrapper {
         position: relative;
-        width: 400px;
-        height: 500px;
         overflow: hidden;
         touch-action: none;
-        user-select: none; 
+        user-select: none;
+        border: 2px solid #ddd;
+        border-radius: 8px;
     }
 
     .crop-image {
@@ -212,25 +398,89 @@
         user-drag: none;
     }
 
+        .crop-image:active {
+            cursor: grabbing;
+        }
+
     .crop-box {
         pointer-events: none;
     }
 
     .zoom-slider-wrapper {
-        width: 400px;
         margin: 10px auto;
     }
 
+        .zoom-slider-wrapper input[type="range"] {
+            width: 100%;
+        }
+
     .module-button {
-        border: 1px solid;
+        border: 1px solid #ccc;
+        background: #f8f9fa;
         cursor: pointer;
-        padding: 4px;
-        border-radius: 3px;
+        padding: 8px 16px;
+        border-radius: 4px;
+        margin: 0 5px;
+        transition: background-color 0.2s;
     }
 
+        .module-button:hover {
+            background: #e9ecef;
+        }
+
+        .module-button:active {
+            background: #dee2e6;
+        }
+    }
 </style>
 
 <script>
+    let windowResizeListener = null;
+    let dotNetHelper = null;
+    let resizeTimeout = null;
+
+    window.getWindowSize = () => {
+        return {
+            width: window.innerWidth,
+            height: window.innerHeight
+        };
+    };
+
+    window.setupWindowResizeListener = (dotNetRef) => {
+        dotNetHelper = dotNetRef;
+
+        // Remove existing listener if any
+        if (windowResizeListener) {
+            window.removeEventListener('resize', windowResizeListener);
+        }
+
+        // Create debounced resize handler
+        windowResizeListener = () => {
+            if (resizeTimeout) {
+                clearTimeout(resizeTimeout);
+            }
+            resizeTimeout = setTimeout(() => {
+                if (dotNetHelper) {
+                    dotNetHelper.invokeMethodAsync('OnWindowResize');
+                }
+            }, 150); // Debounce resize events
+        };
+
+        window.addEventListener('resize', windowResizeListener);
+    };
+
+    window.removeWindowResizeListener = () => {
+        if (windowResizeListener) {
+            window.removeEventListener('resize', windowResizeListener);
+            windowResizeListener = null;
+        }
+        if (resizeTimeout) {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = null;
+        }
+        dotNetHelper = null;
+    };
+
     window.initInstagramStyleCropperInfo = (img, wrapper) => {
         return new Promise(resolve => {
             function getInfo() {
@@ -259,9 +509,11 @@
             }
         });
     };
+
     window.setCropperTransform = (img, posX, posY, scale) => {
         img.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
     };
+
     window.getCroppedImageDataUrl = (img, wrapper, posX, posY, scale) => {
         const cropWidth = wrapper.clientWidth;
         const cropHeight = wrapper.clientHeight;
