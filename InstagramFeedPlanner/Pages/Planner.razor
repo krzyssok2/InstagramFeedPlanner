@@ -14,18 +14,19 @@
 
         <div class="planner-page">
             <button class="planner-button" @onclick="() => AddEmptyPost()">Add new Post</button>
-
-            <div class="feed-grid">
-                @foreach (var post in FeedService.SelectedFeed.Posts.OrderByDescending(e => e.Position))
-                {
-                    <FeedItem @key="post.Id"
-                              Post="post"
-                              OnDelete="OnPostDelete"
-                              OnToggleLock="OnLock"
-                              OnAdjust="OnAdjust"
-                              OnDragStart="OnDragStart"
-                              OnDrop="OnDrop" />
-                }
+            <div class="feed-grid-container">
+                <div class="feed-grid">
+                    @foreach (var post in FeedService.SelectedFeed.Posts.OrderByDescending(e => e.Position))
+                    {
+                        <FeedItem @key="post.Id"
+                                  Post="post"
+                                  OnDelete="OnPostDelete"
+                                  OnToggleLock="OnLock"
+                                  OnAdjust="OnAdjust"
+                                  OnDragStart="OnDragStart"
+                                  OnDrop="OnDrop" />
+                    }
+                </div>
             </div>
         </div>
     </div>
@@ -54,21 +55,26 @@ else
         height: var(--full-page-height);
     }
 
-    .planner-button
-    {
+    .planner-button {
         width: 100%;
-        border-left:0px;
-        border-right:0px;
-        border-top:0px;
-        border-bottom:1px solid black;
-    }    
+        border-left: 0px;
+        border-right: 0px;
+        border-top: 0px;
+        border-bottom: 1px solid black;
+    }
 
     .planner-page {
         height: 100%;
-        width:100%;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .feed-grid-container {
+        flex: 1;
+        overflow-y: auto;
         overflow-x: hidden;
-        overflow-y: scroll;
-        max-height: var(--full-page-height);
+        width: 100%;
     }
 
     .feed-grid {
