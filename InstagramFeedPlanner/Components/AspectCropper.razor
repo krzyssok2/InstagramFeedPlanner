@@ -1,23 +1,28 @@
-﻿<div class="cropper-wrapper" @ref="Wrapper"
-     @onpointerdown="OnPointerDown"
-     @onpointermove="OnPointerMove"
-     @onpointerup="OnPointerUp"
-     @onpointerleave="OnPointerUp">
-    <div class="crop-box"></div>
-    <img @ref="ImageRef" src="@Src" class="crop-image" />
-</div>
+﻿<div class="module-shade">
+    <div class="module">
+        <div class="cropper-wrapper" @ref="Wrapper"
+             @onpointerdown="OnPointerDown"
+             @onpointermove="OnPointerMove"
+             @onpointerup="OnPointerUp"
+             @onpointerleave="OnPointerUp">
+            <div class="crop-box"></div>
+            <img @ref="ImageRef" src="@Src" class="crop-image" />
+        </div>
 
-<div class="zoom-slider-wrapper">
-    <input type="range" min="0" max="100" value="@ZoomValue" @oninput="OnSliderChanged" />
-</div>
+        <div class="zoom-slider-wrapper">
+            <input type="range" min="0" max="100" value="@ZoomValue" @oninput="OnSliderChanged" />
+        </div>
 
-<div style="text-align:center;margin-top:10px;">
-    <button @onclick="ConfirmCrop" style="margin-left:10px;">Confirm</button>
+        <div style="text-align:center;margin-top:10px;">
+            <button @onclick="ConfirmCrop" style="margin-left:10px;">Confirm</button>
+            <button @onclick="() => OnCancel.InvokeAsync()">Cancel</button>
+        </div>
+        @if (CroppedImageDataUrl != null)
+        {
+            <img src="@CroppedImageDataUrl" style="max-width:200px;max-height:200px;" />
+        }
+    </div>
 </div>
-@if (CroppedImageDataUrl != null)
-{
-    <img src="@CroppedImageDataUrl" style="max-width:200px;max-height:200px;" />
-}
 
 @using InstagramFeedPlanner.Components
 @using InstagramFeedPlanner.Models
@@ -25,6 +30,7 @@
 @code {
     [Parameter] public string Src { get; set; } = "";
     [Parameter] public EventCallback<(string croppedUrl, CropDataModel cropData)> OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
     [Parameter] public CropDataModel CropData { get; set; } = new CropDataModel();
 
     private ElementReference ImageRef;
@@ -163,13 +169,36 @@
 }
 
 <style>
+    .module-shade{
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        z-index: 1000;
+    }
+
+    .module{
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%,-50%);
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        aspect-ratio: 4/5;
+        max-width: 500px;
+        height: auto;
+    }
+
     .cropper-wrapper {
         position: relative;
         width: 400px;
-        height: 500px; /* 4:5 ratio */
+        height: 500px;
         overflow: hidden;
-        touch-action: none; /* Prevent touch scroll during drag */
-        user-select: none; /* Prevent text selection while dragging */
+        touch-action: none;
+        user-select: none; 
     }
 
     .crop-image {
@@ -178,14 +207,11 @@
         left: 0;
         cursor: grab;
         transform-origin: top left;
-        -webkit-user-drag: none; /* Prevent image drag ghost */
+        -webkit-user-drag: none;
         user-drag: none;
     }
 
     .crop-box {
-       /*  position: absolute;
-        width: 100%;
-        height: 100%; */
         pointer-events: none;
     }
 
@@ -197,51 +223,51 @@
 </style>
 
 <script>
-window.initInstagramStyleCropperInfo = (img, wrapper) => {
-    return new Promise(resolve => {
-        function getInfo() {
-            const cropWidth = wrapper.clientWidth || 1;
-            const cropHeight = wrapper.clientHeight || 1;
-            const imgWidth = img.naturalWidth || 1;
-            const imgHeight = img.naturalHeight || 1;
-            const minScale = Number(Math.max(cropWidth / imgWidth, cropHeight / imgHeight)) || 1;
-            const scale = Number(minScale);
-            const posX = Number((cropWidth - imgWidth * scale) / 2) || 0;
-            const posY = Number((cropHeight - imgHeight * scale) / 2) || 0;
-            resolve({
-                minScale: minScale,
-                posX: posX,
-                posY: posY,
-                imgWidth: imgWidth,
-                imgHeight: imgHeight,
-                cropWidth: cropWidth,
-                cropHeight: cropHeight
-            });
-        }
-        if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
-            getInfo();
-        } else {
-            img.onload = getInfo;
-        }
-    });
-};
-window.setCropperTransform = (img, posX, posY, scale) => {
-    img.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
-};
-window.getCroppedImageDataUrl = (img, wrapper, posX, posY, scale) => {
-    const cropWidth = wrapper.clientWidth;
-    const cropHeight = wrapper.clientHeight;
-    const canvas = document.createElement('canvas');
-    canvas.width = cropWidth;
-    canvas.height = cropHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, cropWidth, cropHeight);
-    ctx.save();
-    ctx.translate(posX, posY);
-    ctx.scale(scale, scale);
-    ctx.drawImage(img, 0, 0);
-    ctx.restore();
-    return canvas.toDataURL('image/jpeg', 0.95);
-};
+    window.initInstagramStyleCropperInfo = (img, wrapper) => {
+        return new Promise(resolve => {
+            function getInfo() {
+                const cropWidth = wrapper.clientWidth || 1;
+                const cropHeight = wrapper.clientHeight || 1;
+                const imgWidth = img.naturalWidth || 1;
+                const imgHeight = img.naturalHeight || 1;
+                const minScale = Number(Math.max(cropWidth / imgWidth, cropHeight / imgHeight)) || 1;
+                const scale = Number(minScale);
+                const posX = Number((cropWidth - imgWidth * scale) / 2) || 0;
+                const posY = Number((cropHeight - imgHeight * scale) / 2) || 0;
+                resolve({
+                    minScale: minScale,
+                    posX: posX,
+                    posY: posY,
+                    imgWidth: imgWidth,
+                    imgHeight: imgHeight,
+                    cropWidth: cropWidth,
+                    cropHeight: cropHeight
+                });
+            }
+            if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+                getInfo();
+            } else {
+                img.onload = getInfo;
+            }
+        });
+    };
+    window.setCropperTransform = (img, posX, posY, scale) => {
+        img.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+    };
+    window.getCroppedImageDataUrl = (img, wrapper, posX, posY, scale) => {
+        const cropWidth = wrapper.clientWidth;
+        const cropHeight = wrapper.clientHeight;
+        const canvas = document.createElement('canvas');
+        canvas.width = cropWidth;
+        canvas.height = cropHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, cropWidth, cropHeight);
+        ctx.save();
+        ctx.translate(posX, posY);
+        ctx.scale(scale, scale);
+        ctx.drawImage(img, 0, 0);
+        ctx.restore();
+        return canvas.toDataURL('image/jpeg', 0.95);
+    };
 </script>
