@@ -81,9 +81,6 @@
     [Parameter] public EventCallback<Guid> OnDragStart { get; set; }
     [Parameter] public EventCallback<(Guid PostId, DragEventArgs Args)> OnDrop { get; set; }
 
-    // TODO: Potentially might need to redo this
-    private const double PreviewWidth = 400;
-
     private string GetCropStyle(CropData? crop, double containerWidth, double containerHeight)
     {
         if (crop == null || crop.Scale == 0)
@@ -92,7 +89,7 @@
         }
 
         
-        var sizeAdjustment = containerWidth / PreviewWidth;
+        var sizeAdjustment = containerWidth / crop.PreviewWidth;
 
         return $"position:absolute;" +
                $"transform:translate({crop.PosX * sizeAdjustment}px, {crop.PosY * sizeAdjustment}px) scale({crop.Scale * sizeAdjustment});" +

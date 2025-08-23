@@ -16,7 +16,9 @@ public static class CropDataMapper
             PosX = cropData.PosX,
             PosY = cropData.PosY,
             Scale = cropData.Scale,
-            ZoomValue = cropData.ZoomValue
+            ZoomValue = cropData.ZoomValue,
+            PreviewWidth = cropData.PreviewWidth,
+            PreviewHeight = cropData.PreviewHeight
         };
     }
 
@@ -32,7 +34,9 @@ public static class CropDataMapper
             PosX = cropDataModel.PosX,
             PosY = cropDataModel.PosY,
             Scale = cropDataModel.Scale,
-            ZoomValue = cropDataModel.ZoomValue
+            ZoomValue = cropDataModel.ZoomValue,
+            PreviewHeight = cropDataModel.PreviewHeight,
+            PreviewWidth = cropDataModel.PreviewWidth
         };
     }
 }

@@ -6,4 +6,6 @@ public class CropDataModel
     public double PosY { get; set; }
     public double Scale { get; set; }
     public double ZoomValue { get; set; }
+    public double PreviewWidth { get; set; }
+    public double PreviewHeight { get; set; }
 }
