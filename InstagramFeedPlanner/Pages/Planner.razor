@@ -41,7 +41,7 @@ else
 @if (adjustingElement != null)
 {
     <AspectCropper Src="@adjustingElement.Url"
-                   OnConfirm="@(result => OnCropConfirmed(result))"
+                   OnConfirm="@OnCropConfirmed"
                    OnCancel="@CancelAdjust"
                    CropData="@adjustingElement.CropData.ToCropDataModel()" />
 }

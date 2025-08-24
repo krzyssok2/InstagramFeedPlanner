@@ -102,11 +102,11 @@ public partial class Planner(IJSRuntime js, UserFeedService FeedService, Indexed
         }
     }
 
-    private void OnCropConfirmed((string _, CropDataModel cropData) result)
+    private void OnCropConfirmed(CropDataModel result)
     {
         if (adjustingElement != null)
         {
-            FeedService.UpdateCropDetails(adjustingElement!.Id, result.cropData.ToCropData());
+            FeedService.UpdateCropDetails(adjustingElement!.Id, result.ToCropData());
 
             adjustingElement = null;
             StateHasChanged();
