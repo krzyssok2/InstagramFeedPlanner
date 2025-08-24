@@ -34,7 +34,7 @@
     [Parameter] public EventCallback<(string croppedUrl, CropDataModel cropData)> OnConfirm { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
     [Parameter] public CropDataModel CropData { get; set; } = new CropDataModel();
-    [Parameter] public double AspectRatio { get; set; } = 0.8; // Default Instagram aspect ratio (4:5)
+    [Parameter] public double AspectRatio { get; set; } = 0.75; // Default Instagram aspect ratio (3:4)
 
     private ElementReference ImageRef;
     private ElementReference Wrapper;
@@ -58,6 +58,32 @@
 
     private DotNetObjectReference<AspectCropper>? dotNetRef;
     private bool isDisposed = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetRef = DotNetObjectReference.Create(this);
+
+            // Store original preview dimensions from crop data
+            var originalPreviewWidth = CropData.PreviewWidth > 0 ? CropData.PreviewWidth : 400;
+            var originalPreviewHeight = CropData.PreviewHeight > 0 ? CropData.PreviewHeight : 500;
+
+            // Calculate optimal size first
+            await CalculateOptimalSize();
+
+            // Set up window resize listener
+            await JS.InvokeVoidAsync("setupWindowResizeListener", dotNetRef);
+
+            // Force re-render with new dimensions before initializing cropper
+            StateHasChanged();
+
+            // Small delay to ensure DOM is updated
+            await Task.Delay(10);
+
+            await InitializeCropper(originalPreviewWidth, originalPreviewHeight);
+        }
+    }
 
     private async Task CalculateOptimalSize()
     {
@@ -133,33 +159,6 @@
         Scale = newScale;
         ClampPosition();
         await SetTransformAsync();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            // Create reference for JS callbacks
-            dotNetRef = DotNetObjectReference.Create(this);
-
-            // Store original preview dimensions from crop data
-            var originalPreviewWidth = CropData.PreviewWidth > 0 ? CropData.PreviewWidth : 400;
-            var originalPreviewHeight = CropData.PreviewHeight > 0 ? CropData.PreviewHeight : 500;
-
-            // Calculate optimal size first
-            await CalculateOptimalSize();
-
-            // Set up window resize listener
-            await JS.InvokeVoidAsync("setupWindowResizeListener", dotNetRef);
-
-            // Force re-render with new dimensions before initializing cropper
-            StateHasChanged();
-
-            // Small delay to ensure DOM is updated
-            await Task.Delay(10);
-
-            await InitializeCropper(originalPreviewWidth, originalPreviewHeight);
-        }
     }
 
     [JSInvokable]
