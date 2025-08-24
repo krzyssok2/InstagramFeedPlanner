@@ -55,6 +55,10 @@
     private double CropWidth;
     private double CropHeight;
 
+    // Original crop dimensions (for scaling calculations)
+    private double OriginalCropWidth;
+    private double OriginalCropHeight;
+
     // Current transform values
     private double Scale = 1.0;
     private double PosX = 0;
@@ -142,12 +146,24 @@
                     CropHeight = CropWidth / AspectRatio;
                 }
             }
+
+            // Store original dimensions if not set yet
+            if (OriginalCropWidth == 0)
+            {
+                OriginalCropWidth = CropWidth;
+                OriginalCropHeight = CropHeight;
+            }
         }
         catch
         {
             // Fallback dimensions
             CropWidth = 400;
             CropHeight = 400 / AspectRatio;
+            if (OriginalCropWidth == 0)
+            {
+                OriginalCropWidth = CropWidth;
+                OriginalCropHeight = CropHeight;
+            }
         }
     }
 
@@ -171,9 +187,24 @@
     {
         if (CropData != null && CropData.Scale > 0)
         {
-            Scale = CropData.Scale;
-            PosX = CropData.PosX;
-            PosY = CropData.PosY;
+            // Calculate scaling factors based on crop area size changes
+            var scaleFactorX = CropWidth / CropData.PreviewWidth;
+            var scaleFactorY = CropHeight / CropData.PreviewHeight;
+
+            // Use the average scale factor to maintain aspect ratio
+            var avgScaleFactor = (scaleFactorX + scaleFactorY) / 2.0;
+
+            // Adjust position and scale based on current window size
+            PosX = CropData.PosX * scaleFactorX;
+            PosY = CropData.PosY * scaleFactorY;
+
+            // Adjust scale - first calculate what the original scale was relative to the original MinScale
+            var originalMinScale = System.Math.Max(CropData.PreviewWidth / NaturalWidth, CropData.PreviewHeight / NaturalHeight);
+            var relativeScale = CropData.Scale / originalMinScale;
+            Scale = MinScale * relativeScale;
+
+            // Ensure scale is within current bounds
+            Scale = System.Math.Max(MinScale, System.Math.Min(MaxScale, Scale));
 
             // Calculate zoom slider position
             var normalizedScale = (Scale - MinScale) / (MaxScale - MinScale);
@@ -311,6 +342,42 @@
         await OnCancel.InvokeAsync();
     }
 
+    // Method to get normalized crop data for consistent preview across different window sizes
+    public CropDataModel GetNormalizedCropData()
+    {
+        // Calculate crop data relative to crop area dimensions for consistent preview
+        var normalizedPosX = PosX / CropWidth;
+        var normalizedPosY = PosY / CropHeight;
+        var normalizedScale = Scale / MinScale;
+
+        return new CropDataModel
+        {
+            PosX = normalizedPosX,
+            PosY = normalizedPosY,
+            Scale = normalizedScale,
+            ZoomValue = ZoomValue,
+            PreviewWidth = CropWidth,
+            PreviewHeight = CropHeight
+        };
+    }
+
+    // Method to apply normalized crop data (expects values between 0-1 for position ratios)
+    public void ApplyNormalizedCropData(CropDataModel normalizedData)
+    {
+        // Check if this looks like normalized data (position values between 0-1)
+        if (System.Math.Abs(normalizedData.PosX) <= 1.0 && System.Math.Abs(normalizedData.PosY) <= 1.0 &&
+            normalizedData.Scale <= 10.0) // Scale should be reasonable for normalized data
+        {
+            PosX = normalizedData.PosX * CropWidth;
+            PosY = normalizedData.PosY * CropHeight;
+            Scale = normalizedData.Scale * MinScale;
+            ZoomValue = normalizedData.ZoomValue;
+
+            ClampPosition();
+            StateHasChanged();
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         await JS.InvokeVoidAsync("cleanupCropperResize");
@@ -329,6 +396,10 @@
         if (System.Math.Abs(CropWidth - oldCropWidth) > 10 ||
             System.Math.Abs(CropHeight - oldCropHeight) > 10)
         {
+            // Store current position as ratios
+            var posXRatio = PosX / oldCropWidth;
+            var posYRatio = PosY / oldCropHeight;
+
             // Recalculate scale bounds for new crop dimensions
             CalculateScaleBounds();
 
@@ -343,12 +414,9 @@
             var normalizedScale = (Scale - MinScale) / (MaxScale - MinScale);
             ZoomValue = normalizedScale * 100;
 
-            // Proportionally adjust position
-            var widthRatio = CropWidth / oldCropWidth;
-            var heightRatio = CropHeight / oldCropHeight;
-
-            PosX *= widthRatio;
-            PosY *= heightRatio;
+            // Apply position ratios to new dimensions
+            PosX = posXRatio * CropWidth;
+            PosY = posYRatio * CropHeight;
 
             ClampPosition();
             StateHasChanged();
@@ -460,20 +528,20 @@
 
     @@media (max-width: 500px) {
         .cropper-modal
-        {
-            padding: 15px;
-        }
+    {
+        padding: 15px;
+    }
 
-        .zoom-control {
-            font-size: 12px;
-        }
+    .zoom-control {
+        font-size: 12px;
+    }
     }
 </style>
 
 <script>
     let resizeTimeout;
     let cropperInstance;
-    let handleResize; // Move to global scope
+    let handleResize;
 
     window.getImageDimensions = (src) => {
         return new Promise((resolve) => {
@@ -485,7 +553,7 @@
                 });
             };
             img.onerror = () => {
-                resolve({ width: 800, height: 600 }); // fallback
+                resolve({ width: 800, height: 600 });
             };
             img.src = src;
         });
