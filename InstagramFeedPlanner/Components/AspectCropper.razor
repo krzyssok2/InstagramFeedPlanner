@@ -30,17 +30,10 @@
     [Parameter] public EventCallback<CropDataModel> OnConfirm { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
     [Parameter] public CropDataModel CropData { get; set; } = new CropDataModel();
-    [Parameter] public double AspectRatio { get; set; } = 0.75; // Default Instagram aspect ratio (3:4)
-
-    // Configuration constants based on aspect ratio
-    private const double BaseWidth = 400;
-    private const double ViewportWidthRatio = 0.8;
-    private const double ViewportHeightRatio = 0.6;
-    private const double UISpaceWidth = 120;
-    private const double UISpaceHeight = 280;
-    private const double ZoomMultiplier = 3.0;
-    private const double MinWidthRatio = 0.7; // BaseWidth * 0.7 = 280
-    private const double MaxWidthRatio = 1.5;  // BaseWidth * 1.5 = 600
+    [Parameter] public double AspectRatio { get; set; } = 0.75; // width/height ratio
+    [Parameter] public double PreferredWidth { get; set; } = 400; // Base size preference
+    [Parameter] public double ViewportPadding { get; set; } = 0.1; // 10% padding around viewport
+    [Parameter] public double ZoomRange { get; set; } = 3.0; // Max zoom is MinScale * ZoomRange
 
     private ElementReference ImageRef;
     private ElementReference Wrapper;
@@ -58,27 +51,36 @@
     private double CropWidth { get; set; }
     private double CropHeight { get; set; }
 
-    private string? CroppedImageDataUrl;
-
     [Inject] private IJSRuntime JS { get; set; } = default!;
 
     private DotNetObjectReference<AspectCropper>? dotNetRef;
     private bool isDisposed = false;
+
+    // Derived properties
+    private double PreferredHeight => PreferredWidth / AspectRatio;
+    private double ViewportSafeWidth(double windowWidth) => windowWidth * (1 - ViewportPadding * 2);
+    private double ViewportSafeHeight(double windowHeight) => windowHeight * (1 - ViewportPadding * 2);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             dotNetRef = DotNetObjectReference.Create(this);
-            var originalPreviewWidth = CropData.PreviewWidth > 0 ? CropData.PreviewWidth : BaseWidth;
-            var originalPreviewHeight = CropData.PreviewHeight > 0 ? CropData.PreviewHeight : BaseWidth / AspectRatio;
+            var originalSize = GetOriginalPreviewSize();
 
             await CalculateOptimalSize();
             await JS.InvokeVoidAsync("setupWindowResizeListener", dotNetRef);
             StateHasChanged();
             await Task.Delay(10);
-            await InitializeCropper(originalPreviewWidth, originalPreviewHeight);
+            await InitializeCropper(originalSize.width, originalSize.height);
         }
+    }
+
+    private (double width, double height) GetOriginalPreviewSize()
+    {
+        var width = CropData.PreviewWidth > 0 ? CropData.PreviewWidth : PreferredWidth;
+        var height = CropData.PreviewHeight > 0 ? CropData.PreviewHeight : PreferredHeight;
+        return (width, height);
     }
 
     private async Task CalculateOptimalSize()
@@ -86,50 +88,33 @@
         try
         {
             var windowSize = await JS.InvokeAsync<WindowSize>("getWindowSize");
-            var availableWidth = windowSize.Width - UISpaceWidth;
-            var availableHeight = windowSize.Height - UISpaceHeight;
+            var maxWidth = ViewportSafeWidth(windowSize.Width);
+            var maxHeight = ViewportSafeHeight(windowSize.Height);
 
-            // Calculate size bounds based on aspect ratio
-            var minWidth = BaseWidth * MinWidthRatio;
-            var maxWidth = BaseWidth * MaxWidthRatio;
-            var minHeight = minWidth / AspectRatio;
-            var maxHeight = maxWidth / AspectRatio;
+            // Try preferred size first
+            var width = PreferredWidth;
+            var height = PreferredHeight;
 
-            // Start with optimal width based on available space
-            var optimalWidth = Math.Min(Math.Max(availableWidth, minWidth), maxWidth);
-            var optimalHeight = optimalWidth / AspectRatio;
-
-            // Adjust if height exceeds available space
-            if (optimalHeight > availableHeight)
+            // Scale down if too big for viewport
+            if (width > maxWidth)
             {
-                optimalHeight = Math.Min(Math.Max(availableHeight, minHeight), maxHeight);
-                optimalWidth = optimalHeight * AspectRatio;
+                width = maxWidth;
+                height = width / AspectRatio;
             }
 
-            // Final viewport safety check
-            var maxSafeWidth = windowSize.Width * ViewportWidthRatio;
-            var maxSafeHeight = windowSize.Height * ViewportHeightRatio;
-
-            if (optimalWidth > maxSafeWidth)
+            if (height > maxHeight)
             {
-                optimalWidth = maxSafeWidth;
-                optimalHeight = optimalWidth / AspectRatio;
+                height = maxHeight;
+                width = height * AspectRatio;
             }
 
-            if (optimalHeight > maxSafeHeight)
-            {
-                optimalHeight = maxSafeHeight;
-                optimalWidth = optimalHeight * AspectRatio;
-            }
-
-            CropWidth = optimalWidth;
-            CropHeight = optimalHeight;
+            CropWidth = width;
+            CropHeight = height;
         }
         catch
         {
-            // Fallback to base dimensions
-            CropWidth = BaseWidth;
-            CropHeight = BaseWidth / AspectRatio;
+            CropWidth = PreferredWidth;
+            CropHeight = PreferredHeight;
         }
     }
 
@@ -137,14 +122,13 @@
     {
         var oldScale = Scale;
         ZoomValue = Convert.ToDouble(e.Value);
-        var maxScale = MinScale * ZoomMultiplier;
-        var newScale = MinScale + ((maxScale - MinScale) * (ZoomValue / 100));
+        var newScale = MinScale + ((MinScale * ZoomRange - MinScale) * (ZoomValue / 100));
 
         // Center zoom on crop box center
         var centerX = CropWidth / 2.0;
         var centerY = CropHeight / 2.0;
 
-        // Maintain same image point under center during zoom
+        // Keep same image point under center during zoom
         var imgCenterX = (centerX - PosX) / oldScale;
         var imgCenterY = (centerY - PosY) / oldScale;
 
@@ -161,53 +145,37 @@
     {
         if (isDisposed) return;
 
-        var currentCropData = new CropDataModel
-        {
-            PosX = PosX,
-            PosY = PosY,
-            Scale = Scale,
-            ZoomValue = ZoomValue,
-            PreviewWidth = CropWidth,
-            PreviewHeight = CropHeight
-        };
-
-        var originalWidth = CropWidth;
-        var originalHeight = CropHeight;
+        var currentState = GetCurrentCropState();
+        var originalSize = (CropWidth, CropHeight);
 
         await CalculateOptimalSize();
 
-        // Only adjust if size actually changed
-        if (Math.Abs(originalWidth - CropWidth) > 1 || Math.Abs(originalHeight - CropHeight) > 1)
+        if (HasSizeChanged(originalSize))
         {
-            CropData = currentCropData;
-            AdjustCropDataForNewPreviewSize(originalWidth, originalHeight);
+            AdjustCropStateForNewSize(currentState, originalSize);
             StateHasChanged();
             await Task.Delay(10);
             await SetTransformAsync();
         }
     }
 
-    private async Task InitializeCropper(double originalPreviewWidth, double originalPreviewHeight)
+    private async Task InitializeCropper(double originalWidth, double originalHeight)
     {
         var cropperInfo = await JS.InvokeAsync<CropperInitInfo>("initInstagramStyleCropperInfo", ImageRef, Wrapper);
-        MinScale = cropperInfo.MinScale;
-        ImgWidth = cropperInfo.ImgWidth;
-        ImgHeight = cropperInfo.ImgHeight;
-        CropWidth = cropperInfo.CropWidth;
-        CropHeight = cropperInfo.CropHeight;
+        UpdateImageDimensions(cropperInfo);
 
-        // Handle existing crop data or initialize defaults
-        if (HasExistingCropData() && HasPreviewSizeChanged(originalPreviewWidth, originalPreviewHeight))
+        if (HasExistingCropData() && HasSizeChanged((originalWidth, originalHeight)))
         {
-            AdjustCropDataForNewPreviewSize(originalPreviewWidth, originalPreviewHeight);
+            var currentState = GetCropStateFromData();
+            AdjustCropStateForNewSize(currentState, (originalWidth, originalHeight));
         }
         else if (HasExistingCropData())
         {
-            RestoreExistingCropData();
+            RestoreCropState();
         }
         else
         {
-            InitializeDefaultCropData(cropperInfo);
+            InitializeDefaultState(cropperInfo);
         }
 
         ClampPosition();
@@ -215,12 +183,23 @@
         StateHasChanged();
     }
 
+    private void UpdateImageDimensions(CropperInitInfo cropperInfo)
+    {
+        MinScale = cropperInfo.MinScale;
+        ImgWidth = cropperInfo.ImgWidth;
+        ImgHeight = cropperInfo.ImgHeight;
+        CropWidth = cropperInfo.CropWidth;
+        CropHeight = cropperInfo.CropHeight;
+    }
+
+    private CropState GetCurrentCropState() => new(PosX, PosY, Scale, ZoomValue, CropWidth, CropHeight);
+    private CropState GetCropStateFromData() => new(CropData.PosX, CropData.PosY, CropData.Scale, CropData.ZoomValue, CropData.PreviewWidth, CropData.PreviewHeight);
+
     private bool HasExistingCropData() => CropData.Scale > 0 || CropData.PosX != 0 || CropData.PosY != 0 || CropData.ZoomValue > 0;
+    private bool HasSizeChanged((double width, double height) originalSize) =>
+        Math.Abs(originalSize.width - CropWidth) > 1 || Math.Abs(originalSize.height - CropHeight) > 1;
 
-    private bool HasPreviewSizeChanged(double originalWidth, double originalHeight) =>
-        Math.Abs(originalWidth - CropWidth) > 1 || Math.Abs(originalHeight - CropHeight) > 1;
-
-    private void RestoreExistingCropData()
+    private void RestoreCropState()
     {
         Scale = CropData.Scale;
         ZoomValue = CropData.ZoomValue;
@@ -228,7 +207,7 @@
         PosY = CropData.PosY;
     }
 
-    private void InitializeDefaultCropData(CropperInitInfo cropperInfo)
+    private void InitializeDefaultState(CropperInitInfo cropperInfo)
     {
         Scale = MinScale;
         ZoomValue = 0;
@@ -236,27 +215,25 @@
         PosY = cropperInfo.PosY;
     }
 
-    private void AdjustCropDataForNewPreviewSize(double originalWidth, double originalHeight)
+    private void AdjustCropStateForNewSize(CropState currentState, (double width, double height) originalSize)
     {
-        // Calculate proportional adjustments
-        var widthRatio = CropWidth / originalWidth;
-        var heightRatio = CropHeight / originalHeight;
+        var widthRatio = CropWidth / originalSize.width;
+        var heightRatio = CropHeight / originalSize.height;
 
         // Adjust position proportionally
-        PosX = CropData.PosX * widthRatio;
-        PosY = CropData.PosY * heightRatio;
+        PosX = currentState.PosX * widthRatio;
+        PosY = currentState.PosY * heightRatio;
 
-        // Calculate scale adjustments
-        var originalMinScale = Math.Max(originalWidth / ImgWidth, originalHeight / ImgHeight);
+        // Adjust scale proportionally
+        var originalMinScale = Math.Max(originalSize.width / ImgWidth, originalSize.height / ImgHeight);
         var newMinScale = Math.Max(CropWidth / ImgWidth, CropHeight / ImgHeight);
-        var scaleRatio = CropData.Scale / originalMinScale;
+        var scaleRatio = currentState.Scale / originalMinScale;
 
         Scale = newMinScale * scaleRatio;
         MinScale = newMinScale;
 
-        // Recalculate zoom value for new scale range
-        var newMaxScale = newMinScale * ZoomMultiplier;
-        var normalizedScale = Math.Max(0, Math.Min(1, (Scale - newMinScale) / (newMaxScale - newMinScale)));
+        // Recalculate zoom value
+        var normalizedScale = Math.Max(0, Math.Min(1, (Scale - MinScale) / (MinScale * ZoomRange - MinScale)));
         ZoomValue = normalizedScale * 100;
 
         ClampPosition();
@@ -321,6 +298,8 @@
             dotNetRef.Dispose();
         }
     }
+
+    private record CropState(double PosX, double PosY, double Scale, double ZoomValue, double PreviewWidth, double PreviewHeight);
 
     private class CropperInitInfo
     {
