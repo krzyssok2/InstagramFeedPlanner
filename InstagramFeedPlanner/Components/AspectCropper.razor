@@ -1,277 +1,296 @@
-﻿<div class="module-shade">
-    <div class="module">
-        <div class="cropper-wrapper" @ref="Wrapper"
-             @onpointerdown="OnPointerDown"
-             @onpointermove="OnPointerMove"
-             @onpointerup="OnPointerUp"
-             @onpointerleave="OnPointerUp"
-             style="width: @(CropWidth)px; height: @(CropHeight)px;">
-            <div class="crop-box"></div>
-            <img @ref="ImageRef" src="@Src" class="crop-image" />
+﻿@using InstagramFeedPlanner.Models
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="cropper-overlay">
+    <div class="cropper-modal">
+        <h3>Crop Image</h3>
+
+        <div class="cropper-container" style="width: @(CropWidth)px; height: @(CropHeight)px;">
+            <div class="image-container"
+                 @onmousedown="StartDrag"
+                 @onmousemove="OnDrag"
+                 @onmouseup="EndDrag"
+                 @onmouseleave="EndDrag"
+                 @ontouchstart="StartDrag"
+                 @ontouchmove="OnDrag"
+                 @ontouchend="EndDrag">
+                <img @ref="ImageElement" src="@Src" class="crop-image"
+                     style="width: @(DisplayWidth)px; height: @(DisplayHeight)px;
+                            transform: translate(@(PosX)px, @(PosY)px);"
+                     draggable="false" />
+            </div>
+            <div class="crop-overlay"></div>
         </div>
 
-        <div class="zoom-slider-wrapper" style="width: @(CropWidth)px;">
-            <input type="range" min="0" max="100" value="@ZoomValue" @oninput="OnSliderChanged" />
+        <div class="controls">
+            <div class="zoom-control">
+                <label>Zoom:</label>
+                <input type="range" min="@MinZoom" max="@MaxZoom" step="1"
+                       value="@ZoomValue" @oninput="OnZoomChange" />
+                <span>@((int)((MinScale + (ZoomValue / 100.0) * (MaxScale - MinScale)) * 100))%</span>
+            </div>
         </div>
 
-        <div class="button-container">
-            <button class="module-button" @onclick="ConfirmCrop">Confirm</button>
-            <button class="module-button" @onclick="() => OnCancel.InvokeAsync()">Cancel</button>
+        <div class="buttons">
+            <button class="btn btn-primary" @onclick="ConfirmCrop">Confirm</button>
+            <button class="btn btn-secondary" @onclick="Cancel">Cancel</button>
         </div>
     </div>
 </div>
-
-@implements IAsyncDisposable
-@using InstagramFeedPlanner.Components
-@using InstagramFeedPlanner.Models
 
 @code {
     [Parameter] public string Src { get; set; } = "";
     [Parameter] public EventCallback<CropDataModel> OnConfirm { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
-    [Parameter] public CropDataModel CropData { get; set; } = new CropDataModel();
-    [Parameter] public double AspectRatio { get; set; } = 0.75; // width/height ratio
-    [Parameter] public double PreferredWidth { get; set; } = 400; // Base size preference
-    [Parameter] public double ViewportPadding { get; set; } = 0.1; // 10% padding around viewport
-    [Parameter] public double ZoomRange { get; set; } = 3.0; // Max zoom is MinScale * ZoomRange
+    [Parameter] public CropDataModel? CropData { get; set; }
+    [Parameter] public double AspectRatio { get; set; } = 1.0; // width/height
+    [Parameter] public double ViewportPercentage { get; set; } = 0.6; // 60% of viewport
 
-    private ElementReference ImageRef;
-    private ElementReference Wrapper;
+    private ElementReference ImageElement;
 
-    private double ZoomValue { get; set; } = 0;
-    private double Scale { get; set; } = 1;
-    private double MinScale { get; set; } = 1;
-    private double PosX { get; set; } = 0;
-    private double PosY { get; set; } = 0;
-    private bool IsDragging { get; set; } = false;
-    private double StartX { get; set; }
-    private double StartY { get; set; } = 0;
-    private double ImgWidth { get; set; }
-    private double ImgHeight { get; set; }
-    private double CropWidth { get; set; }
-    private double CropHeight { get; set; }
+    // Image natural dimensions
+    private double NaturalWidth = 800;
+    private double NaturalHeight = 600;
 
-    [Inject] private IJSRuntime JS { get; set; } = default!;
+    // Crop area dimensions
+    private double CropWidth;
+    private double CropHeight;
 
-    private DotNetObjectReference<AspectCropper>? dotNetRef;
-    private bool isDisposed = false;
+    // Current transform values
+    private double Scale = 1.0;
+    private double PosX = 0;
+    private double PosY = 0;
+    private double ZoomValue = 0; // 0-100 for slider
 
-    // Derived properties
-    private double PreferredHeight => PreferredWidth / AspectRatio;
-    private double ViewportSafeWidth(double windowWidth) => windowWidth * (1 - ViewportPadding * 2);
-    private double ViewportSafeHeight(double windowHeight) => windowHeight * (1 - ViewportPadding * 2);
+    // Scale bounds
+    private double MinScale = 1.0;
+    private double MaxScale = 3.0;
+    private int MinZoom = 0;
+    private int MaxZoom = 100;
+
+    // Calculated display dimensions
+    private double DisplayWidth => NaturalWidth * Scale;
+    private double DisplayHeight => NaturalHeight * Scale;
+
+    // Mouse/touch dragging
+    private bool IsDragging = false;
+    private double DragStartX = 0;
+    private double DragStartY = 0;
+    private double DragStartPosX = 0;
+    private double DragStartPosY = 0;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            dotNetRef = DotNetObjectReference.Create(this);
-            var originalSize = GetOriginalPreviewSize();
-
-            await CalculateOptimalSize();
-            await JS.InvokeVoidAsync("setupWindowResizeListener", dotNetRef);
+            await LoadImageDimensions();
+            await CalculateResponsiveCropDimensions();
+            CalculateScaleBounds();
+            RestoreCropData();
+            CenterImageIfNeeded();
+            await SetupWindowResize();
             StateHasChanged();
-            await Task.Delay(10);
-            await InitializeCropper(originalSize.width, originalSize.height);
         }
     }
 
-    private (double width, double height) GetOriginalPreviewSize()
+    private async Task LoadImageDimensions()
     {
-        var width = CropData.PreviewWidth > 0 ? CropData.PreviewWidth : PreferredWidth;
-        var height = CropData.PreviewHeight > 0 ? CropData.PreviewHeight : PreferredHeight;
-        return (width, height);
+        try
+        {
+            var dimensions = await JS.InvokeAsync<ImageDimensions>("getImageDimensions", Src);
+            NaturalWidth = dimensions.Width;
+            NaturalHeight = dimensions.Height;
+        }
+        catch
+        {
+            // Fallback to default dimensions
+            NaturalWidth = 800;
+            NaturalHeight = 600;
+        }
     }
 
-    private async Task CalculateOptimalSize()
+    private async Task CalculateResponsiveCropDimensions()
     {
         try
         {
             var windowSize = await JS.InvokeAsync<WindowSize>("getWindowSize");
-            var maxWidth = ViewportSafeWidth(windowSize.Width);
-            var maxHeight = ViewportSafeHeight(windowSize.Height);
+            var maxWidth = windowSize.Width * ViewportPercentage;
+            var maxHeight = windowSize.Height * ViewportPercentage;
 
-            // Try preferred size first
-            var width = PreferredWidth;
-            var height = PreferredHeight;
-
-            // Scale down if too big for viewport
-            if (width > maxWidth)
+            if (AspectRatio >= 1)
             {
-                width = maxWidth;
-                height = width / AspectRatio;
-            }
+                // Landscape: try to use width constraint first
+                CropWidth = System.Math.Min(maxWidth, maxHeight * AspectRatio);
+                CropHeight = CropWidth / AspectRatio;
 
-            if (height > maxHeight)
+                // If height is too big, constraint by height instead
+                if (CropHeight > maxHeight)
+                {
+                    CropHeight = maxHeight;
+                    CropWidth = CropHeight * AspectRatio;
+                }
+            }
+            else
             {
-                height = maxHeight;
-                width = height * AspectRatio;
-            }
+                // Portrait: try to use height constraint first
+                CropHeight = System.Math.Min(maxHeight, maxWidth / AspectRatio);
+                CropWidth = CropHeight * AspectRatio;
 
-            CropWidth = width;
-            CropHeight = height;
+                // If width is too big, constraint by width instead
+                if (CropWidth > maxWidth)
+                {
+                    CropWidth = maxWidth;
+                    CropHeight = CropWidth / AspectRatio;
+                }
+            }
         }
         catch
         {
-            CropWidth = PreferredWidth;
-            CropHeight = PreferredHeight;
+            // Fallback dimensions
+            CropWidth = 400;
+            CropHeight = 400 / AspectRatio;
         }
     }
 
-    private async Task OnSliderChanged(ChangeEventArgs e)
+    private async Task SetupWindowResize()
     {
-        var oldScale = Scale;
-        ZoomValue = Convert.ToDouble(e.Value);
-        var newScale = MinScale + ((MinScale * ZoomRange - MinScale) * (ZoomValue / 100));
-
-        // Center zoom on crop box center
-        var centerX = CropWidth / 2.0;
-        var centerY = CropHeight / 2.0;
-
-        // Keep same image point under center during zoom
-        var imgCenterX = (centerX - PosX) / oldScale;
-        var imgCenterY = (centerY - PosY) / oldScale;
-
-        PosX = centerX - imgCenterX * newScale;
-        PosY = centerY - imgCenterY * newScale;
-        Scale = newScale;
-
-        ClampPosition();
-        await SetTransformAsync();
+        await JS.InvokeVoidAsync("setupCropperResize", DotNetObjectReference.Create(this));
     }
 
-    [JSInvokable]
-    public async Task OnWindowResize()
+    private void CalculateScaleBounds()
     {
-        if (isDisposed) return;
+        // Minimum scale ensures the image covers the entire crop area
+        var scaleX = CropWidth / NaturalWidth;
+        var scaleY = CropHeight / NaturalHeight;
+        MinScale = System.Math.Max(scaleX, scaleY);
 
-        var currentState = GetCurrentCropState();
-        var originalSize = (CropWidth, CropHeight);
-
-        await CalculateOptimalSize();
-
-        if (HasSizeChanged(originalSize))
-        {
-            AdjustCropStateForNewSize(currentState, originalSize);
-            StateHasChanged();
-            await Task.Delay(10);
-            await SetTransformAsync();
-        }
+        // Maximum scale is 3x the minimum
+        MaxScale = MinScale * 3.0;
     }
 
-    private async Task InitializeCropper(double originalWidth, double originalHeight)
+    private void RestoreCropData()
     {
-        var cropperInfo = await JS.InvokeAsync<CropperInitInfo>("initInstagramStyleCropperInfo", ImageRef, Wrapper);
-        UpdateImageDimensions(cropperInfo);
+        if (CropData != null && CropData.Scale > 0)
+        {
+            Scale = CropData.Scale;
+            PosX = CropData.PosX;
+            PosY = CropData.PosY;
 
-        if (HasExistingCropData() && HasSizeChanged((originalWidth, originalHeight)))
-        {
-            var currentState = GetCropStateFromData();
-            AdjustCropStateForNewSize(currentState, (originalWidth, originalHeight));
-        }
-        else if (HasExistingCropData())
-        {
-            RestoreCropState();
+            // Calculate zoom slider position
+            var normalizedScale = (Scale - MinScale) / (MaxScale - MinScale);
+            ZoomValue = normalizedScale * 100;
         }
         else
         {
-            InitializeDefaultState(cropperInfo);
+            Scale = MinScale;
+            ZoomValue = 0;
         }
 
         ClampPosition();
-        await SetTransformAsync();
+    }
+
+    private void CenterImageIfNeeded()
+    {
+        if (CropData == null || CropData.Scale <= 0)
+        {
+            // Center the image initially
+            PosX = (CropWidth - DisplayWidth) / 2;
+            PosY = (CropHeight - DisplayHeight) / 2;
+            ClampPosition();
+        }
+    }
+
+    private void OnZoomChange(ChangeEventArgs e)
+    {
+        ZoomValue = Convert.ToDouble(e.Value);
+        var oldScale = Scale;
+
+        // Calculate new scale
+        var normalizedZoom = ZoomValue / 100.0;
+        Scale = MinScale + normalizedZoom * (MaxScale - MinScale);
+
+        // Keep the center point stable during zoom
+        var centerX = CropWidth / 2.0;
+        var centerY = CropHeight / 2.0;
+
+        var imageCenterX = (centerX - PosX) / oldScale;
+        var imageCenterY = (centerY - PosY) / oldScale;
+
+        PosX = centerX - imageCenterX * Scale;
+        PosY = centerY - imageCenterY * Scale;
+
+        ClampPosition();
         StateHasChanged();
     }
 
-    private void UpdateImageDimensions(CropperInitInfo cropperInfo)
-    {
-        MinScale = cropperInfo.MinScale;
-        ImgWidth = cropperInfo.ImgWidth;
-        ImgHeight = cropperInfo.ImgHeight;
-        CropWidth = cropperInfo.CropWidth;
-        CropHeight = cropperInfo.CropHeight;
-    }
-
-    private CropState GetCurrentCropState() => new(PosX, PosY, Scale, ZoomValue, CropWidth, CropHeight);
-    private CropState GetCropStateFromData() => new(CropData.PosX, CropData.PosY, CropData.Scale, CropData.ZoomValue, CropData.PreviewWidth, CropData.PreviewHeight);
-
-    private bool HasExistingCropData() => CropData.Scale > 0 || CropData.PosX != 0 || CropData.PosY != 0 || CropData.ZoomValue > 0;
-    private bool HasSizeChanged((double width, double height) originalSize) =>
-        Math.Abs(originalSize.width - CropWidth) > 1 || Math.Abs(originalSize.height - CropHeight) > 1;
-
-    private void RestoreCropState()
-    {
-        Scale = CropData.Scale;
-        ZoomValue = CropData.ZoomValue;
-        PosX = CropData.PosX;
-        PosY = CropData.PosY;
-    }
-
-    private void InitializeDefaultState(CropperInitInfo cropperInfo)
-    {
-        Scale = MinScale;
-        ZoomValue = 0;
-        PosX = cropperInfo.PosX;
-        PosY = cropperInfo.PosY;
-    }
-
-    private void AdjustCropStateForNewSize(CropState currentState, (double width, double height) originalSize)
-    {
-        var widthRatio = CropWidth / originalSize.width;
-        var heightRatio = CropHeight / originalSize.height;
-
-        // Adjust position proportionally
-        PosX = currentState.PosX * widthRatio;
-        PosY = currentState.PosY * heightRatio;
-
-        // Adjust scale proportionally
-        var originalMinScale = Math.Max(originalSize.width / ImgWidth, originalSize.height / ImgHeight);
-        var newMinScale = Math.Max(CropWidth / ImgWidth, CropHeight / ImgHeight);
-        var scaleRatio = currentState.Scale / originalMinScale;
-
-        Scale = newMinScale * scaleRatio;
-        MinScale = newMinScale;
-
-        // Recalculate zoom value
-        var normalizedScale = Math.Max(0, Math.Min(1, (Scale - MinScale) / (MinScale * ZoomRange - MinScale)));
-        ZoomValue = normalizedScale * 100;
-
-        ClampPosition();
-    }
-
-    private async Task SetTransformAsync()
-    {
-        await JS.InvokeVoidAsync("setCropperTransform", ImageRef, PosX, PosY, Scale);
-    }
-
-    private void OnPointerDown(PointerEventArgs e)
+    private void StartDrag(MouseEventArgs e)
     {
         IsDragging = true;
-        StartX = e.ClientX - PosX;
-        StartY = e.ClientY - PosY;
+        DragStartX = e.ClientX;
+        DragStartY = e.ClientY;
+        DragStartPosX = PosX;
+        DragStartPosY = PosY;
     }
 
-    private async void OnPointerMove(PointerEventArgs e)
+    private void StartDrag(TouchEventArgs e)
+    {
+        if (e.Touches.Length > 0)
+        {
+            IsDragging = true;
+            DragStartX = e.Touches[0].ClientX;
+            DragStartY = e.Touches[0].ClientY;
+            DragStartPosX = PosX;
+            DragStartPosY = PosY;
+        }
+    }
+
+    private void OnDrag(MouseEventArgs e)
     {
         if (!IsDragging) return;
-        PosX = e.ClientX - StartX;
-        PosY = e.ClientY - StartY;
+
+        var deltaX = e.ClientX - DragStartX;
+        var deltaY = e.ClientY - DragStartY;
+
+        PosX = DragStartPosX + deltaX;
+        PosY = DragStartPosY + deltaY;
+
         ClampPosition();
-        await SetTransformAsync();
+        StateHasChanged();
     }
 
-    private async void OnPointerUp(PointerEventArgs e)
+    private void OnDrag(TouchEventArgs e)
+    {
+        if (!IsDragging || e.Touches.Length == 0) return;
+
+        var deltaX = e.Touches[0].ClientX - DragStartX;
+        var deltaY = e.Touches[0].ClientY - DragStartY;
+
+        PosX = DragStartPosX + deltaX;
+        PosY = DragStartPosY + deltaY;
+
+        ClampPosition();
+        StateHasChanged();
+    }
+
+    private void EndDrag(MouseEventArgs e)
     {
         IsDragging = false;
-        await SetTransformAsync();
+    }
+
+    private void EndDrag(TouchEventArgs e)
+    {
+        IsDragging = false;
     }
 
     private void ClampPosition()
     {
-        var minX = CropWidth - ImgWidth * Scale;
-        var minY = CropHeight - ImgHeight * Scale;
-        PosX = Math.Min(0, Math.Max(minX, PosX));
-        PosY = Math.Min(0, Math.Max(minY, PosY));
+        // Ensure image doesn't go beyond crop boundaries
+        var minX = CropWidth - DisplayWidth;
+        var minY = CropHeight - DisplayHeight;
+
+        PosX = System.Math.Min(0, System.Math.Max(minX, PosX));
+        PosY = System.Math.Min(0, System.Math.Max(minY, PosY));
     }
 
     private async Task ConfirmCrop()
@@ -289,27 +308,59 @@
         await OnConfirm.InvokeAsync(cropData);
     }
 
+    private async Task Cancel()
+    {
+        await OnCancel.InvokeAsync();
+    }
+
     public async ValueTask DisposeAsync()
     {
-        isDisposed = true;
-        if (dotNetRef != null)
+        await JS.InvokeVoidAsync("cleanupCropperResize");
+    }
+
+    [JSInvokable]
+    public async Task OnWindowResize()
+    {
+        var oldCropWidth = CropWidth;
+        var oldCropHeight = CropHeight;
+        var oldMinScale = MinScale;
+
+        await CalculateResponsiveCropDimensions();
+
+        // If size changed significantly, recalculate everything
+        if (System.Math.Abs(CropWidth - oldCropWidth) > 10 ||
+            System.Math.Abs(CropHeight - oldCropHeight) > 10)
         {
-            await JS.InvokeVoidAsync("removeWindowResizeListener");
-            dotNetRef.Dispose();
+            // Recalculate scale bounds for new crop dimensions
+            CalculateScaleBounds();
+
+            // Adjust current scale proportionally
+            var scaleRatio = MinScale / oldMinScale;
+            Scale *= scaleRatio;
+
+            // Ensure scale is within new bounds
+            Scale = System.Math.Max(MinScale, System.Math.Min(MaxScale, Scale));
+
+            // Recalculate zoom slider position based on new scale bounds
+            var normalizedScale = (Scale - MinScale) / (MaxScale - MinScale);
+            ZoomValue = normalizedScale * 100;
+
+            // Proportionally adjust position
+            var widthRatio = CropWidth / oldCropWidth;
+            var heightRatio = CropHeight / oldCropHeight;
+
+            PosX *= widthRatio;
+            PosY *= heightRatio;
+
+            ClampPosition();
+            StateHasChanged();
         }
     }
 
-    private record CropState(double PosX, double PosY, double Scale, double ZoomValue, double PreviewWidth, double PreviewHeight);
-
-    private class CropperInitInfo
+    private class ImageDimensions
     {
-        public double MinScale { get; set; }
-        public double PosX { get; set; }
-        public double PosY { get; set; }
-        public double ImgWidth { get; set; }
-        public double ImgHeight { get; set; }
-        public double CropWidth { get; set; }
-        public double CropHeight { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
     }
 
     private class WindowSize
@@ -320,80 +371,153 @@
 }
 
 <style>
-    .module-shade {
+    .cropper-overlay {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0,0,0,0.7);
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
         z-index: 1000;
     }
 
-    .module {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%,-50%);
+    .cropper-modal {
         background: white;
+        border-radius: 8px;
         padding: 20px;
-        border-radius: 10px;
         max-width: 90vw;
-        max-height: 85vh;
-        overflow: visible;
+        max-height: 90vh;
+        overflow: auto;
     }
 
-    .cropper-wrapper {
+        .cropper-modal h3 {
+            margin-top: 0;
+            text-align: center;
+        }
+
+    .cropper-container {
         position: relative;
+        border: 2px solid #ddd;
+        margin: 20px auto;
         overflow: hidden;
-        touch-action: none;
-        user-select: none;
+        background: #f5f5f5;
     }
+
+    .image-container {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        cursor: grab;
+        user-select: none;
+        overflow: hidden;
+    }
+
+        .image-container:active {
+            cursor: grabbing;
+        }
 
     .crop-image {
         position: absolute;
         top: 0;
         left: 0;
-        cursor: grab;
         transform-origin: top left;
+        transition: none;
+        pointer-events: none;
         -webkit-user-drag: none;
         user-drag: none;
     }
 
-        .crop-image:active {
-            cursor: grabbing;
-        }
-
-    .crop-box {
+    .crop-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
         pointer-events: none;
+        border: 2px dashed rgba(255, 255, 255, 0.8);
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
     }
 
-    .zoom-slider-wrapper {
-        margin: 15px auto;
+    .controls {
+        margin: 20px 0;
     }
 
-        .zoom-slider-wrapper input[type="range"] {
-            width: 100%;
+    .zoom-control {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+        .zoom-control input[type="range"] {
+            flex: 1;
         }
 
-    .module-button {
-        border: 1px solid;
-        background: #f8f9fa;
-        cursor: pointer;
-        padding: 10px 20px;
-        border-radius: 4px;
-        min-width: 80px;
+    .buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 20px;
     }
 
-    .button-container {
-        text-align: center;
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .btn-primary {
+        background: #007bff;
+        color: white;
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+
+    .btn:hover {
+        opacity: 0.9;
+    }
+
+    @@media (max-width: 500px) {
+        .cropper-modal
+
+    {
+        padding: 15px;
+    }
+
+    .zoom-control {
+        font-size: 12px;
+    }
+
     }
 </style>
 
 <script>
-    let windowResizeListener = null;
-    let dotNetHelper = null;
-    let resizeTimeout = null;
+    let resizeTimeout;
+    let cropperInstance;
+    let handleResize; // Move to global scope
+
+    window.getImageDimensions = (src) => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                resolve({
+                    width: img.naturalWidth,
+                    height: img.naturalHeight
+                });
+            };
+            img.onerror = () => {
+                resolve({ width: 800, height: 600 }); // fallback
+            };
+            img.src = src;
+        });
+    };
 
     window.getWindowSize = () => {
         return {
@@ -402,69 +526,32 @@
         };
     };
 
-    window.setupWindowResizeListener = (dotNetRef) => {
-        dotNetHelper = dotNetRef;
+    window.setupCropperResize = (dotNetRef) => {
+        cropperInstance = dotNetRef;
 
-        if (windowResizeListener) {
-            window.removeEventListener('resize', windowResizeListener);
-        }
-
-        windowResizeListener = () => {
+        handleResize = () => {
             if (resizeTimeout) {
                 clearTimeout(resizeTimeout);
             }
             resizeTimeout = setTimeout(() => {
-                if (dotNetHelper) {
-                    dotNetHelper.invokeMethodAsync('OnWindowResize');
+                if (cropperInstance) {
+                    cropperInstance.invokeMethodAsync('OnWindowResize');
                 }
             }, 150);
         };
 
-        window.addEventListener('resize', windowResizeListener);
+        window.addEventListener('resize', handleResize);
     };
 
-    window.removeWindowResizeListener = () => {
-        if (windowResizeListener) {
-            window.removeEventListener('resize', windowResizeListener);
-            windowResizeListener = null;
+    window.cleanupCropperResize = () => {
+        if (handleResize) {
+            window.removeEventListener('resize', handleResize);
+            handleResize = null;
         }
         if (resizeTimeout) {
             clearTimeout(resizeTimeout);
             resizeTimeout = null;
         }
-        dotNetHelper = null;
-    };
-
-    window.initInstagramStyleCropperInfo = (img, wrapper) => {
-        return new Promise(resolve => {
-            function getInfo() {
-                const cropWidth = wrapper.clientWidth || 1;
-                const cropHeight = wrapper.clientHeight || 1;
-                const imgWidth = img.naturalWidth || 1;
-                const imgHeight = img.naturalHeight || 1;
-                const minScale = Number(Math.max(cropWidth / imgWidth, cropHeight / imgHeight)) || 1;
-                const scale = Number(minScale);
-                const posX = Number((cropWidth - imgWidth * scale) / 2) || 0;
-                const posY = Number((cropHeight - imgHeight * scale) / 2) || 0;
-                resolve({
-                    minScale: minScale,
-                    posX: posX,
-                    posY: posY,
-                    imgWidth: imgWidth,
-                    imgHeight: imgHeight,
-                    cropWidth: cropWidth,
-                    cropHeight: cropHeight
-                });
-            }
-            if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
-                getInfo();
-            } else {
-                img.onload = getInfo;
-            }
-        });
-    };
-
-    window.setCropperTransform = (img, posX, posY, scale) => {
-        img.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+        cropperInstance = null;
     };
 </script>

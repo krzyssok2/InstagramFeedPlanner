@@ -43,6 +43,7 @@ else
     <AspectCropper Src="@adjustingElement.Url"
                    OnConfirm="@OnCropConfirmed"
                    OnCancel="@CancelAdjust"
+                   AspectRatio="0.75"
                    CropData="@adjustingElement.CropData.ToCropDataModel()" />
 }
 
