@@ -26,7 +26,7 @@
                 <label>Zoom:</label>
                 <input type="range" min="@MinZoom" max="@MaxZoom" step="1"
                        value="@ZoomValue" @oninput="OnZoomChange" />
-                <span>@((int)((MinScale + (ZoomValue / 100.0) * (MaxScale - MinScale)) * 100))%</span>
+                <span>@(GetDisplayZoomPercentage())%</span>
             </div>
         </div>
 
@@ -366,7 +366,7 @@
     {
         // Check if this looks like normalized data (position values between 0-1)
         if (System.Math.Abs(normalizedData.PosX) <= 1.0 && System.Math.Abs(normalizedData.PosY) <= 1.0 &&
-            normalizedData.Scale <= 10.0) // Scale should be reasonable for normalized data
+            normalizedData.Scale <= 10.0)
         {
             PosX = normalizedData.PosX * CropWidth;
             PosY = normalizedData.PosY * CropHeight;
@@ -376,6 +376,11 @@
             ClampPosition();
             StateHasChanged();
         }
+    }
+
+    private int GetDisplayZoomPercentage()
+    {
+        return (int)((Scale / MinScale) * 100);
     }
 
     public async ValueTask DisposeAsync()
@@ -535,6 +540,7 @@
     .zoom-control {
         font-size: 12px;
     }
+
     }
 </style>
 
