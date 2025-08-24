@@ -5,12 +5,15 @@
 @if (FeedService?.SelectedFeed?.Posts != null)
 {
     <div class="planner-wrapper">
-        <FeedSidebar Feeds="FeedService.Feeds"
-                      SelectedFeedId="FeedService.SelectedFeed.Id"
-                      OnFeedSelected="SelectFeed"
-                      OnDeleteFeed="DeleteFeed"
-                      OnAddNewFeed="AddNewFeed"
-                      OnRenameFeed="RenameFeed" />
+        <div class="feed-sidebar-container">
+            <FeedSidebar Feeds="FeedService.Feeds"
+                         SelectedFeedId="FeedService.SelectedFeed.Id"
+                         OnFeedSelected="SelectFeed"
+                         OnDeleteFeed="DeleteFeed"
+                         OnAddNewFeed="AddNewFeed"
+                         OnRenameFeed="RenameFeed" />
+
+        </div>
 
         <div class="planner-page">
             <button class="planner-button" @onclick="() => AddEmptyPost()">Add new Post</button>
@@ -86,6 +89,12 @@ else
         user-select: none;
         -webkit-user-select: none; /* Safari */
         -ms-user-select: none; /* old IE/Edge */
+    }
+
+    @@media (max-width: 800px) {
+        .feed-sidebar-container {
+            display:none !important;
+        }
     }
 </style>
 
