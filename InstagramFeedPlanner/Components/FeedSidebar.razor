@@ -1,0 +1,113 @@
+﻿<div class="feed-selector">
+    <button class="feed-selector-button" @onclick="() => OnAddNewFeed.InvokeAsync()">Add new Feed</button>
+
+    <div class="feed-list">
+        @foreach (var feed in Feeds)
+        {
+            <div class="feed-option @(SelectedFeedId == feed.Id ? "selected" : "")"
+                 @onclick="() => OnFeedSelected.InvokeAsync(feed.Id)">
+
+                @if (RenamingFeedId == feed.Id)
+                {
+                    <div class="rename-container">
+                        <input type="text"
+                               class="rename-input"
+                               maxlength="15"
+                               @bind="RenameText"
+                               @bind:event="oninput"
+                               @ref="renameInputRef"
+                               @onkeydown="(e) => OnRenameKeyDown(e, feed.Id)"
+                               @onclick:stopPropagation />
+
+                        <button class="rename-confirm-btn" @onclick="() => ConfirmRename(feed.Id)">
+                            <CheckIcon />
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="feed-content">
+                        <span class="feed-name" title="@feed.Name">@feed.Name</span>
+                        <div class="feed-option-actions">
+                            <button class="rename-feed-btn"
+                                    @onclick="(e) => StartRename(feed.Id, feed.Name)"
+                                    @onclick:stopPropagation
+                                    title="Rename feed">
+                                <PenIcon />
+                            </button>
+                            <button class="delete-feed-btn"
+                                    @onclick="(e) => OnDeleteFeed.InvokeAsync(feed.Id)"
+                                    @onclick:stopPropagation
+                                    title="Delete feed">
+                                <XIcon StrokeThickness="4" />
+                            </button>
+                        </div>
+                    </div>
+                }
+
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<Feed> Feeds { get; set; } = new();
+    [Parameter] public Guid? SelectedFeedId { get; set; }
+    [Parameter] public EventCallback<Guid> OnFeedSelected { get; set; }
+    [Parameter] public EventCallback<Guid> OnDeleteFeed { get; set; }
+    [Parameter] public EventCallback OnAddNewFeed { get; set; }
+    [Parameter] public EventCallback<(Guid feedId, string newName)> OnRenameFeed { get; set; }
+
+    private Guid? RenamingFeedId { get; set; }
+    private string RenameText { get; set; } = "";
+
+    private ElementReference? renameInputRef;
+    private bool shouldFocusRenameInput;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (shouldFocusRenameInput && renameInputRef.HasValue)
+        {
+            shouldFocusRenameInput = false;
+            await renameInputRef.Value.FocusAsync();
+        }
+    }
+
+    private void StartRename(Guid id, string currentName)
+    {
+        RenamingFeedId = id;
+        RenameText = currentName;
+        shouldFocusRenameInput = true;
+    }
+
+    private async void ConfirmRename(Guid id)
+    {
+        if (!string.IsNullOrWhiteSpace(RenameText))
+        {
+            await OnRenameFeed.InvokeAsync((id, RenameText));
+        }
+
+        ResetRename();
+
+        StateHasChanged();
+    }
+
+    private async Task OnRenameKeyDown(KeyboardEventArgs e, Guid id)
+    {
+        if (e.Key == "Enter")
+        {
+            await Task.Yield();
+            ConfirmRename(id);
+        }
+        else if (e.Key == "Escape")
+        {
+            ResetRename();
+        }
+    }
+
+    private void ResetRename()
+    {
+        RenamingFeedId = null;
+        RenameText = "";
+    }
+}
