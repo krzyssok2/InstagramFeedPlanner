@@ -10,6 +10,7 @@
 		/help;
 	 </BlazorWasmPrerenderingUrlPathToExplicitFetch>
 	 <BlazorWasmPrerenderingDeleteLoadingContents>true</BlazorWasmPrerenderingDeleteLoadingContents>
+	 <GHPagesBase>/</GHPagesBase>
   </PropertyGroup>
 
   <ItemGroup>
