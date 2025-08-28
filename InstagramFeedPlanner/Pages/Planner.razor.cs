@@ -75,6 +75,13 @@ public partial class Planner(IJSRuntime js, UserFeedService FeedService, Indexed
 
         // Image drop logic
         var imageUrl = await js.InvokeAsync<string>("dragDropHelper.getImageFromDropEvent");
+        await HandleImage(result.PostId, imageUrl);
+    }
+
+    private async Task OnImageUpload((Guid PostId, string Url) result) => await HandleImage(result.PostId, result.Url);
+
+    private async Task HandleImage(Guid postId, string imageUrl)
+    {
         if (!string.IsNullOrEmpty(imageUrl))
         {
             var blobKey = await indexedDbImageService.SaveImageAsync(imageUrl);
@@ -83,7 +90,7 @@ public partial class Planner(IJSRuntime js, UserFeedService FeedService, Indexed
 
             if (blobUrl != null)
             {
-                FeedService.InitializeImage(result.PostId, blobKey, blobUrl);
+                FeedService.InitializeImage(postId, blobKey, blobUrl);
                 return;
             }
             StateHasChanged();
