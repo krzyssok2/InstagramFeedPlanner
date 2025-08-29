@@ -12,7 +12,8 @@
                  @onmouseleave="EndDrag"
                  @ontouchstart="StartDrag"
                  @ontouchmove="OnDrag"
-                 @ontouchend="EndDrag">
+                 @ontouchend="EndDrag"
+                 @ontouchmove:preventDefault>
                 <img @ref="ImageElement" src="@Src" class="crop-image"
                      style="width: @(DisplayWidth)px; height: @(DisplayHeight)px;
                             transform: translate(@(PosX)px, @(PosY)px);"
@@ -480,8 +481,8 @@
         cursor: grab;
         user-select: none;
         overflow: hidden;
-        touch-action: pan-x pan-y;
-        overscroll-behavior: none;
+        touch-action: none;
+        overscroll-behavior: contain;
     }
 
         .image-container:active {
@@ -508,7 +509,8 @@
         bottom: 0;
         pointer-events: none;
         box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
-        touch-action: auto;
+        overscroll-behavior: contain;
+        touch-action: none;
     }
 
     .controls {
