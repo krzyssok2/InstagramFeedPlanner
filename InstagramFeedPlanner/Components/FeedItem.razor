@@ -1,4 +1,4 @@
-﻿<div @ref="FeedItemRef" @key=Post.Id class="feed-item @(IsSelected ? "selected" : "")"
+﻿<div @ref="FeedItemRef" @key=Post.Id class="feed-item @(IsSelected ? "selected" : "") @(string.IsNullOrEmpty(Post.Url) ? "no-image" : "")"
      ondragover="event.preventDefault();"
      draggable="@(Post.IsLocked ? "false" : "true")"
      @ondragstart="() => OnDragStart.InvokeAsync(Post.Id)"
@@ -7,19 +7,22 @@
 
     <div class="feed-item-controls-left">
 
-        <button class="control-button"
-                @onclick="() => OnToggleLock.InvokeAsync(Post.Id)"
-                @onclick:stopPropagation
-                title="@(Post.IsLocked ? "Unlock post" : "Lock post")">
-            @if (Post.IsLocked)
-            {
-                <PaddleLocked />
-            }
-            else
-            {
-                <PaddleUnlocked />
-            }
-        </button>
+        @if (!string.IsNullOrEmpty(Post.Url))
+        {
+            <button class="control-button"
+                    @onclick="() => OnToggleLock.InvokeAsync(Post.Id)"
+                    @onclick:stopPropagation
+                    title="@(Post.IsLocked ? "Unlock post" : "Lock post")">
+                @if (Post.IsLocked)
+                {
+                    <PaddleLocked />
+                }
+                else
+                {
+                    <PaddleUnlocked />
+                }
+            </button>
+        }
 
         @if (!Post.IsLocked && !string.IsNullOrEmpty(Post.Url))
         {
@@ -29,8 +32,8 @@
                     title="Adjust crop">
                 <Wrench />
             </button>
-        }    
-        
+        }
+
         @if (!Post.IsLocked)
         {
             <div class="fake-button" title="Import photo">
@@ -195,7 +198,9 @@
         position: absolute;
         top: 2px;
         left: 2px;
-        z-index:1;
+        z-index: 1;
+        opacity: 0.5;
+        transition: opacity 0.2s ease;
     }
 
     .feed-item-controls-right {
@@ -203,6 +208,40 @@
         top: 2px;
         right: 2px;
         z-index: 1;
+        opacity: 0.5;
+        transition: opacity 0.2s ease;
+    }
+
+    .feed-item.selected .feed-item-controls-left,
+    .feed-item.selected .feed-item-controls-right,
+    .feed-item.no-image .feed-item-controls-left,
+    .feed-item.no-image .feed-item-controls-right {
+        opacity: 1;
+    }
+
+    @@media (hover: hover) {
+        .feed-item:hover .feed-item-controls-left, .feed-item:hover .feed-item-controls-right
+
+    {
+        opacity: 1;
+    }
+
+    }
+
+    @@media (hover: none) {
+        .feed-item .feed-item-controls-left, .feed-item .feed-item-controls-right
+
+    {
+        display: none;
+    }
+
+    .feed-item.selected .feed-item-controls-left,
+    .feed-item.selected .feed-item-controls-right,
+    .feed-item.no-image .feed-item-controls-left,
+    .feed-item.no-image .feed-item-controls-right {
+        display: block;
+    }
+
     }
 
     .control-button {
