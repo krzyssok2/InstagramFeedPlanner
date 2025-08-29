@@ -23,12 +23,14 @@
                     {
                         <FeedItem @key="post.Id"
                                   Post="post"
+                                  IsSelected="@(post.Id == clickedItemId)"
                                   OnDelete="OnPostDelete"
                                   OnToggleLock="OnLock"
                                   OnAdjust="OnAdjust"
                                   OnDragStart="OnDragStart"
                                   OnDrop="OnDrop"
-                                  OnUpload="OnImageUpload" />
+                                  OnUpload="OnImageUpload"
+                                  OnClick="OnPostClick"/>
                     }
                 </div>
             </div>
