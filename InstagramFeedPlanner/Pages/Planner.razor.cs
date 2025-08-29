@@ -9,6 +9,9 @@ namespace InstagramFeedPlanner.Pages;
 public partial class Planner(IJSRuntime js, UserFeedService FeedService, IndexedDbImageService indexedDbImageService)
 {
     private DotNetObjectReference<Planner>? objRef;
+    private Guid? draggedItemId;
+    private Post? adjustingElement;
+    private Guid? clickedItemId;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -41,9 +44,6 @@ public partial class Planner(IJSRuntime js, UserFeedService FeedService, Indexed
         StateHasChanged();
     }
 
-    private Guid? draggedItemId;
-    private Post? adjustingElement;
-
     private void AddEmptyPost() => FeedService.AddEmptyPost();
 
     private async Task AddNewFeed()
@@ -60,13 +60,17 @@ public partial class Planner(IJSRuntime js, UserFeedService FeedService, Indexed
 
     private void CancelAdjust() => adjustingElement = null;
 
-    private void OnDragStart(Guid id) => draggedItemId = id;
+    private void OnDragStart(Guid id)
+    {
+        clickedItemId = null;
+        draggedItemId = id;
+    }
 
     private async Task OnDrop((Guid PostId, DragEventArgs Args) result)
     {
         if (draggedItemId != null)
         {
-            HandlePostDrop(draggedItemId.Value, result.PostId, result.Args);
+            HandlePostDrop(draggedItemId.Value, result.PostId, result.Args.ShiftKey);
 
             draggedItemId = null;
             StateHasChanged();
@@ -97,9 +101,9 @@ public partial class Planner(IJSRuntime js, UserFeedService FeedService, Indexed
         }
     }
 
-    private void HandlePostDrop(Guid draggedPost, Guid targetPost, DragEventArgs e)
+    private void HandlePostDrop(Guid draggedPost, Guid targetPost, bool isSwap)
     {
-        if (e.ShiftKey)
+        if (isSwap)
         {
             FeedService.SwapPosts(draggedPost, targetPost);
         }
@@ -117,6 +121,27 @@ public partial class Planner(IJSRuntime js, UserFeedService FeedService, Indexed
 
             adjustingElement = null;
             StateHasChanged();
+        }
+    }
+
+    private void OnPostClick((Guid PostId, MouseEventArgs Args) result)
+    {
+        if (clickedItemId == result.PostId)
+        {
+            clickedItemId = null;
+            return;
+        }
+
+        if (clickedItemId == null)
+        {
+            clickedItemId = result.PostId;
+            return;
+        }
+        else
+        {
+            HandlePostDrop(clickedItemId.Value, result.PostId, result.Args.ShiftKey);
+            clickedItemId = null;
+            return;
         }
     }
 

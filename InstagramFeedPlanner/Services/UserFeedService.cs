@@ -102,8 +102,8 @@ public class UserFeedService(FeedAndPostDbService dbService, IndexedDbImageServi
 
     public void SwapPosts(Guid postId1, Guid postId2)
     {
-        var post1 = SelectedFeed.Posts.FirstOrDefault(e => e.Id == postId1);
-        var post2 = SelectedFeed.Posts.FirstOrDefault(e => e.Id == postId2);
+        var post1 = SelectedFeed.Posts?.FirstOrDefault(e => e.Id == postId1);
+        var post2 = SelectedFeed.Posts?.FirstOrDefault(e => e.Id == postId2);
 
         if (post1 == null || post2 == null)
         {
@@ -126,9 +126,9 @@ public class UserFeedService(FeedAndPostDbService dbService, IndexedDbImageServi
 
     public void InsertPostIntoPosition(Guid targetPostId, Guid targetPositionId)
     {
-        var targetPost = SelectedFeed.Posts.FirstOrDefault(e => e.Id == targetPostId);
+        var targetPost = SelectedFeed.Posts?.FirstOrDefault(e => e.Id == targetPostId);
 
-        var targetPositionPost = SelectedFeed.Posts.FirstOrDefault(e => e.Id == targetPositionId);
+        var targetPositionPost = SelectedFeed.Posts?.FirstOrDefault(e => e.Id == targetPositionId);
 
         if (targetPost == null || targetPositionPost == null)
         {
@@ -184,7 +184,7 @@ public class UserFeedService(FeedAndPostDbService dbService, IndexedDbImageServi
 
     public void UpdateCropDetails(Guid id, CropData cropData)
     {
-        var post = SelectedFeed.Posts.FirstOrDefault(e => e.Id == id);
+        var post = SelectedFeed.Posts?.FirstOrDefault(e => e.Id == id);
 
         if (post == null)
         {
@@ -197,7 +197,7 @@ public class UserFeedService(FeedAndPostDbService dbService, IndexedDbImageServi
 
     public void UpdateLockStatus(Guid id)
     {
-        var post = SelectedFeed.Posts.FirstOrDefault(e => e.Id == id);
+        var post = SelectedFeed.Posts?.FirstOrDefault(e => e.Id == id);
 
         if (post == null)
         {
