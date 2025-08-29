@@ -132,13 +132,14 @@
 
     @@media (max-width: 450px) {
         .layout-wrapper {
-            --footer-height: 150px;
+            --footer-height: 75px;
             --topbar-height: 75px;
-            --page-padding: 1rem;
+            --page-padding: 0px;
             --full-page-height: calc(100vh - var(--footer-height) - var(--topbar-height) - 2 * var(--page-padding));
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            min-height: 100svh;
             background: var(--background);
             color: var(--text);
         }
@@ -153,7 +154,8 @@
         left: 0;
         right: 0;
         bottom: 0;
-        height: 100dvh; /* Better mobile viewport */
+        min-height: 100vh;
+        min-height: 100svh;
     }
 
     .main-content {
