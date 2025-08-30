@@ -1,5 +1,4 @@
 ﻿@inherits LayoutComponentBase
-@* @inject ThemeService ThemeService; *@
 
 <div class="layout-wrapper white-mode">
     <div class="topbar">
@@ -15,14 +14,14 @@
     </div>
 </div>
 
-<style>  
-    .dark-mode{
+<style>
+    .dark-mode {
         --text: #E0E0E0;
         --placeholder: #AAAAAA;
         --background: #1A1A1A;
         --primary: #444444;
         --secondary: #888888;
-        --accent: #FF4C4C; 
+        --accent: #FF4C4C;
     }
 
     .white-mode {
@@ -38,13 +37,13 @@
         --footer-height: 50px;
         --topbar-height: 75px;
         --page-padding: 1rem;
-        --full-page-height: calc(100vh - var(--footer-height) - var(--topbar-height) - 2 * var(--page-padding));
-        --full-page-height: calc(100svh - var(--footer-height) - var(--topbar-height) - 2 * var(--page-padding));
         display: flex;
         flex-direction: column;
-        min-height: 100vh;
+        height: 100vh;
+        height: 100svh;
         background: var(--background);
         color: var(--text);
+        overflow: hidden;
     }
 
         .layout-wrapper div, a, button, input, label {
@@ -56,17 +55,17 @@
             background-color: var(--primary);
         }
 
-        .layout-wrapper input::placeholder{
+            .layout-wrapper input::placeholder {
                 color: var(--placeholder);
-        }
+            }
 
-        .layout-wrapper button{
+        .layout-wrapper button {
             background-color: var(--primary);
         }
 
-        .layout-wrapper button:hover {
-            background-color: var(--secondary);
-        }
+            .layout-wrapper button:hover {
+                background-color: var(--secondary);
+            }
 
             .layout-wrapper button.active {
                 background-color: var(--secondary);
@@ -76,13 +75,13 @@
             text-decoration: underline var(--accent);
         }
 
-        .layout-wrapper .selection-item:hover{
+        .layout-wrapper .selection-item:hover {
             background: var(--secondary)
         }
 
         .layout-wrapper *::-webkit-scrollbar {
             width: 16px;
-            height:16px;
+            height: 16px;
         }
 
         .layout-wrapper *::-webkit-scrollbar-thumb {
@@ -98,7 +97,7 @@
             background-color: transparent;
         }
 
-        .layout-wrapper .brand a{
+        .layout-wrapper .brand a {
             background: linear-gradient(to right, var(--text) 0%, var(--accent) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -106,63 +105,59 @@
 
     .topbar {
         background: var(--background);
-        position: sticky;
-        top: 0;
-        z-index: 1000;
-        border-bottom: 1px solid;
+        border-bottom: 1px solid var(--text);
         height: var(--topbar-height);
-        max-height: var(--topbar-height);
+        min-height: var(--topbar-height);
+        flex-shrink: 0;
+        z-index: 1000;
     }
 
     .main-content {
         flex: 1;
         display: flex;
         flex-direction: column;
-        padding: var(--page-padding);       
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
     }
 
     .bottombar {
-        border-top: 1px solid;
-        height: var(--footer-height);        
+        border-top: 1px solid var(--text);
+        height: var(--footer-height);
+        min-height: var(--footer-height);
+        flex-shrink: 0;
         padding: 1rem;
         text-align: center;
         font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
-
 
     @@media (max-width: 450px) {
-        .layout-wrapper {
-            --footer-height: 75px;
-            --topbar-height: 75px;
-            --page-padding: 0px;
-            --full-page-height: calc(100vh - var(--footer-height) - var(--topbar-height) - 2 * var(--page-padding));
-            --full-page-height: calc(100svh - var(--footer-height) - var(--topbar-height) - 2 * var(--page-padding));
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-            min-height: 100svh;
-            background: var(--background);
-            color: var(--text);
-        }
-    }
-
-    @@media (max-width: 768px) {
         .layout-wrapper
 
     {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        min-height: 100vh;
-        min-height: 100svh;
+        --footer-height: 75px;
+        --topbar-height: 75px;
+        --page-padding: 0.5rem;
     }
 
-    .main-content {
-        -webkit-overflow-scrolling: touch;
+    }
+
+    @@media (max-width: 768px) {
+        .main-content
+
+    {
         overscroll-behavior-y: contain;
     }
 
+    }
+
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
     }
 </style>

@@ -4,39 +4,41 @@
 
 @if (FeedService?.SelectedFeed?.Posts != null)
 {
-    <div class="planner-wrapper">
-        <div class="feed-sidebar-container">
-            <FeedSidebar Feeds="FeedService.Feeds"
-                         SelectedFeedId="FeedService.SelectedFeed.Id"
-                         OnFeedSelected="SelectFeed"
-                         OnDeleteFeed="DeleteFeed"
-                         OnAddNewFeed="AddNewFeed"
-                         OnRenameFeed="RenameFeed" />
+    <div class="page">
+        <div class="planner-wrapper">
+            <div class="feed-sidebar-container">
+                <FeedSidebar Feeds="FeedService.Feeds"
+                             SelectedFeedId="FeedService.SelectedFeed.Id"
+                             OnFeedSelected="SelectFeed"
+                             OnDeleteFeed="DeleteFeed"
+                             OnAddNewFeed="AddNewFeed"
+                             OnRenameFeed="RenameFeed" />
 
-        </div>
+            </div>
 
-        <div class="planner-page">
-            <button class="planner-button" @onclick="() => AddEmptyPost()">Add new Post</button>
-            <div class="feed-grid-container">
-                <div class="feed-grid">
-                    @foreach (var post in FeedService.SelectedFeed.Posts.OrderByDescending(e => e.Position))
-                    {
-                        <FeedItem @key="post.Id"
-                                  Post="post"
-                                  IsSelected="@(post.Id == clickedItemId)"
-                                  OnDelete="OnPostDelete"
-                                  OnToggleLock="OnLock"
-                                  OnAdjust="OnAdjust"
-                                  OnDragStart="OnDragStart"
-                                  OnDrop="OnDrop"
-                                  OnUpload="OnImageUpload"
-                                  OnClick="OnPostClick"/>
-                    }
+            <div class="planner-page">
+                <button class="planner-button" @onclick="() => AddEmptyPost()">Add new Post</button>
+                <div class="feed-grid-container">
+                    <div class="feed-grid">
+                        @foreach (var post in FeedService.SelectedFeed.Posts.OrderByDescending(e => e.Position))
+                        {
+                            <FeedItem @key="post.Id"
+                                      Post="post"
+                                      IsSelected="@(post.Id == clickedItemId)"
+                                      OnDelete="OnPostDelete"
+                                      OnToggleLock="OnLock"
+                                      OnAdjust="OnAdjust"
+                                      OnDragStart="OnDragStart"
+                                      OnDrop="OnDrop"
+                                      OnUpload="OnImageUpload"
+                                      OnClick="OnPostClick" />
+                        }
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    
+
 }
 else
 {
@@ -52,64 +54,6 @@ else
                    AspectRatio="0.75"
                    CropData="@adjustingElement.CropData.ToCropDataModel()" />
 }
-
-<style>
-    .planner-wrapper {
-        display: flex;
-        border: 1px solid #ccc;
-        height: var(--full-page-height);
-    }
-
-    .planner-button {
-        width: 100%;
-        border-left: 0px;
-        border-right: 0px;
-        border-top: 0px;
-        border-bottom: 1px solid black;
-    }
-
-    .planner-page {
-        height: 100%;
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .feed-grid-container {
-        flex: 1;
-        overflow-y: auto;
-        overflow-x: hidden;
-        width: 100%;
-    }
-
-    .feed-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        padding: 2px 5px;
-        gap: 1px;
-        max-width: 972px;
-        margin: 0 auto;
-        user-select: none;
-        -webkit-user-select: none; /* Safari */
-        -ms-user-select: none; /* old IE/Edge */
-    }
-
-    @@media (max-width: 450px) {
-        .planner-wrapper {
-            border: 0px;
-        }
-
-        .feed-grid {
-            padding: 2px 1px;
-        }
-    }
-
-    @@media (max-width: 800px) {
-        .feed-sidebar-container {
-            display:none !important;
-        }
-    }
-</style>
 
 <script>
     window.visibilityHandler = {

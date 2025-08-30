@@ -37,9 +37,11 @@
         @if (!Post.IsLocked)
         {
             <div class="fake-button" title="Import photo">
-                <InputFile OnChange="(e) => Import(e, Post.Id)" accept=".jpg, .jpeg, .png, .webp" style="display:none" id="@($"InputField_{Post.Id}")" />
+                <InputFile OnChange="(e) => Import(e, Post.Id)" accept=".jpg, .jpeg, .png, .webp" style="display:none" id="@($"InputField_{Post.Id}")" @onclick:stopPropagation/>
 
-                <label for="@($"InputField_{Post.Id}")" style="cursor: pointer;">
+                <label for="@($"InputField_{Post.Id}")" 
+                       style="cursor: pointer;"
+                       @onclick:stopPropagation>
                     <Upload />
                 </label>
             </div>
@@ -66,72 +68,7 @@
     }
 </div>
 
-@code {
-    private ElementReference FeedItemRef;
-    private double FeedItemWidth;
-    private double FeedItemHeight;
 
-    [Inject] private IJSRuntime JS { get; set; } = null!;
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await JS.InvokeVoidAsync("resizeObserver.observe", FeedItemRef, DotNetObjectReference.Create(this));
-        }
-    }
-
-    [JSInvokable]
-    public void OnResized(double width, double height)
-    {
-        FeedItemWidth = width;
-        FeedItemHeight = height;
-        StateHasChanged();
-    }
-
-    [Parameter] public Post Post { get; set; } = null!;
-    [Parameter] public bool IsSelected { get; set; } = false;
-    [Parameter] public EventCallback<Guid> OnDelete { get; set; }
-    [Parameter] public EventCallback<Guid> OnToggleLock { get; set; }
-    [Parameter] public EventCallback<Post> OnAdjust { get; set; }
-    [Parameter] public EventCallback<Guid> OnDragStart { get; set; }
-    [Parameter] public EventCallback<(Guid PostId, DragEventArgs Args)> OnDrop { get; set; }
-    [Parameter] public EventCallback<(Guid PostId, string Url)> OnUpload { get; set; }
-    [Parameter] public EventCallback<(Guid PostId, MouseEventArgs Args)> OnClick { get; set; }
-
-    private void OnPostClick(MouseEventArgs args, Guid Id) => OnClick.InvokeAsync((Id, args));
-
-    private string GetCropStyle(CropData? crop, double containerWidth, double containerHeight)
-    {
-        if (crop == null || crop.Scale == 0)
-        {
-            return $"width:{FeedItemWidth}px; height:{FeedItemHeight}px; position:absolute; object-fit: cover";
-        }
-
-
-        var sizeAdjustment = containerWidth / crop.PreviewWidth;
-
-        return $"position:absolute;" +
-               $"transform:translate({crop.PosX * sizeAdjustment}px, {crop.PosY * sizeAdjustment}px) scale({crop.Scale * sizeAdjustment});" +
-               $"transform-origin:top left;";
-    }
-
-    private async Task Import(InputFileChangeEventArgs args, Guid guid)
-    {
-        if (args.FileCount != 1) return;
-
-        var file = args.File;
-
-        using var stream = file.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024);
-        using var ms = new MemoryStream();
-        await stream.CopyToAsync(ms);
-
-        var base64 = Convert.ToBase64String(ms.ToArray());
-        var dataUrl = $"data:{file.ContentType};base64,{base64}";
-
-        await OnUpload.InvokeAsync((guid, dataUrl));
-    }
-}
 
 <script>
     window.resizeObserver = {
@@ -154,116 +91,3 @@
         }
     };
 </script>
-
-<style>
-    .feed-item {
-        aspect-ratio: 3 / 4;
-        width: 100%;
-        max-width: 324px;
-        background: #ccc;
-        position: relative;
-        overflow: hidden;
-        user-select: none;
-        -webkit-user-select: none;
-        -ms-user-select: none;
-        -webkit-touch-callout: none; /* Disable iOS callout */
-        -webkit-user-select: none; /* Disable text selection */
-        -khtml-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-        -webkit-tap-highlight-color: transparent; /* Remove tap highlight */
-        touch-action: manipulation;
-    }
-
-        .feed-item.selected::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            border: 3px solid red;
-            pointer-events: none;
-            z-index: 2;
-        }
-
-        .feed-item * {
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
-        }
-
-    .feed-item-controls-left {
-        position: absolute;
-        top: 2px;
-        left: 2px;
-        z-index: 1;
-        opacity: 0.5;
-        transition: opacity 0.2s ease;
-    }
-
-    .feed-item-controls-right {
-        position: absolute;
-        top: 2px;
-        right: 2px;
-        z-index: 1;
-        opacity: 0.3;
-        transition: opacity 0.2s ease;
-    }
-
-    .feed-item.selected .feed-item-controls-left,
-    .feed-item.selected .feed-item-controls-right,
-    .feed-item.no-image .feed-item-controls-left,
-    .feed-item.no-image .feed-item-controls-right {
-        opacity: 1;
-    }
-
-    @@media (hover: hover) {
-        .feed-item:hover .feed-item-controls-left, .feed-item:hover .feed-item-controls-right
-
-    {
-        opacity: 1;
-    }
-
-    }
-
-    @@media (hover: none) {
-        .feed-item .feed-item-controls-left, .feed-item .feed-item-controls-right
-
-    {
-        display: none;
-    }
-
-    .feed-item.selected .feed-item-controls-left,
-    .feed-item.selected .feed-item-controls-right,
-    .feed-item.no-image .feed-item-controls-left,
-    .feed-item.no-image .feed-item-controls-right {
-        display: block;
-    }
-
-    }
-
-    .control-button {
-        border: 1px solid;
-        cursor: pointer;
-        padding: 4px;
-        display: flex;
-        align-items: center;
-        border-radius: 3px;
-    }
-
-    .fake-button {
-        border: 1px solid;
-        cursor: pointer;
-        padding: 4px;
-        display: flex;
-        align-items: center;
-        border-radius: 3px;
-        background: #E0E0E0;
-    }
-
-        .fake-button:hover {
-            background: #CCCCCC;
-        }
-</style>
