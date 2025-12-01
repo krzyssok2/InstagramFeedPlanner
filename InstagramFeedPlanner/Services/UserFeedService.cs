@@ -205,6 +205,7 @@ public class UserFeedService(FeedAndPostDbService dbService, IndexedDbImageServi
         }
 
         post.ToggleLock();
+        _ = dbService.UpdatePostAsync(post);
     }
 
     private async Task<List<Post>> GetPostsWithUpdatedBlobs(Guid feedId)
