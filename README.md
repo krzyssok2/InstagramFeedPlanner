@@ -11,7 +11,7 @@ Plan your Instagram feed at comfort of your pc screen
 - Full mobile support
 
 # Try it here
-You can try out the tool hosted on [github pages](https://krzyssok2.github.io/InstagramFeedPlanner/)
+You can try out the tool hosted on [cloudflare pages](https://ig-planner.krzys2.com/)
 
 # Support
 Instagram Feed Planner is a free passion project, made with love. If you’ve found the tool useful, feel free to support my future work by donating on [ko-fi](https://ko-fi.com/krzys2) — no pressure at all!
